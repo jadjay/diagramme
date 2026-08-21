@@ -281,7 +281,7 @@ class _GridCanvasState extends State<GridCanvas> {
               //
               // Plus tard on utilisera quelque chose de plus robuste.
               id: 'rectangle-${shapes.length + 1}',
-
+              type: ShapeType.rectangle,
               // Le rectangle apparaît à l'endroit cliqué
               // dans le monde.
               position: worldPosition,

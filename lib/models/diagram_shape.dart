@@ -28,9 +28,27 @@ import 'package:flutter/material.dart';
 ///          ↓
 ///   coordonnées écran
 ///
+///
+
+/// Types de formes supportés par l'application.
+///
+/// Pour l'instant :
+/// - rectangle
+/// - circle
+///
+/// On pourra plus tard ajouter :
+/// - diamond
+/// - ellipse
+/// - etc.
+enum ShapeType {
+  rectangle,
+  circle,
+}
+
 class DiagramShape {
   DiagramShape({
     required this.id,
+    required this.type,
     required this.position,
     required this.width,
     required this.height,
@@ -44,6 +62,9 @@ class DiagramShape {
   /// - sauvegarder le diagramme.
   final String id;
 
+  /// Type géométrique de la forme.
+  final ShapeType type;
+  
   /// Position de la forme DANS LE MONDE.
   ///
   /// Pour un rectangle, on considère que cette position
