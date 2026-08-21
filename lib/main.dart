@@ -72,25 +72,10 @@ class _GridCanvasState extends State<GridCanvas> {
     /// 0.5 = 50 %
     double scale = 1.0;
 
-    /// Toutes les formes présentes dans notre diagramme.
-    ///
-    /// Pour l'instant, cette liste contient un rectangle créé en dur.
-    /// Plus tard, elle commencera vide et l'utilisateur ajoutera
-    /// les formes avec la barre d'outils.
-    ///
-    /// Très important : les coordonnées sont celles DU MONDE.
-    final List<DiagramShape> shapes = [
-      DiagramShape(
-        id: 'rectangle-1',
+    /// Le canevas démarre maintenant réellement vide.
+    /// Les formes seront ajoutées par l'utilisateur.
+    final List<DiagramShape> shapes = [];
 
-        // Coin supérieur gauche dans le monde.
-        position: const Offset(100, 100),
-
-        // Dimensions exprimées elles aussi en unités du monde.
-        width: 200,
-        height: 100,
-      ),
-    ];
     /// Forme actuellement sélectionnée.
     ///
     /// null signifie qu'aucune forme n'est sélectionnée.
@@ -160,6 +145,14 @@ class _GridCanvasState extends State<GridCanvas> {
     /// Si draggedShape == null pendant un drag,
     /// alors le drag sert à déplacer le canevas.
     DiagramShape? draggedShape;
+
+    /// Outil actuellement sélectionné.
+    ///
+    /// Pour l'instant :
+    /// - null = mode normal / sélection
+    /// - 'rectangle' = le prochain clic crée un rectangle
+    String? activeTool;
+    
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
       //
@@ -251,9 +244,67 @@ class _GridCanvasState extends State<GridCanvas> {
       /// capture les interactions, même si elle est visuellement vide.
       behavior: HitTestBehavior.opaque,
 
+    //onTapDown: (details) {
+    //
+    //  // details.localPosition = position du clic dans le widget,
+    //  // donc dans les coordonnées de l'écran.
+    //  final DiagramShape? shape =
+    //      _shapeAtScreenPosition(details.localPosition);
+    //
+    //  setState(() {
+    //    selectedShape = shape;
+    //  });
+    //
+    //  if (shape != null) {
+    //    debugPrint('Forme sélectionnée : ${shape.id}');
+    //  } else {
+    //    debugPrint('Aucune forme sélectionnée');
+    //  }
+    //},
+    
     onTapDown: (details) {
-      // details.localPosition = position du clic dans le widget,
-      // donc dans les coordonnées de l'écran.
+      // ----------------------------------------------------------
+      // CAS 1 : outil rectangle actif
+      // ----------------------------------------------------------
+      //
+      // Le clic ne sert plus à sélectionner.
+      // Il sert à créer une nouvelle forme.
+      if (activeTool == 'rectangle') {
+        // Conversion écran -> monde.
+        final Offset worldPosition =
+            (details.localPosition - offset) / scale;
+
+        setState(() {
+          shapes.add(
+            DiagramShape(
+              // ID provisoire basé sur le nombre de formes.
+              //
+              // Plus tard on utilisera quelque chose de plus robuste.
+              id: 'rectangle-${shapes.length + 1}',
+
+              // Le rectangle apparaît à l'endroit cliqué
+              // dans le monde.
+              position: worldPosition,
+
+              // Taille par défaut provisoire.
+              width: 200,
+              height: 100,
+            ),
+          );
+
+          // On repasse immédiatement en mode normal.
+          //
+          // Donc : un clic sur l'outil rectangle
+          // crée UN rectangle, puis l'outil se désactive.
+          activeTool = null;
+        });
+
+        return;
+      }
+
+      // ----------------------------------------------------------
+      // CAS 2 : comportement normal de sélection
+      // ----------------------------------------------------------
       final DiagramShape? shape =
           _shapeAtScreenPosition(details.localPosition);
 
@@ -267,6 +318,7 @@ class _GridCanvasState extends State<GridCanvas> {
         debugPrint('Aucune forme sélectionnée');
       }
     },
+
     onPanStart: (details) {
       // Au moment précis où le drag commence,
       // on regarde ce qui se trouve sous la souris.
@@ -395,6 +447,55 @@ class _GridCanvasState extends State<GridCanvas> {
         ),
       ),
     ),
+
+    // Outil rectangle
+    Positioned(
+              left: 16,
+              top: 16,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: const [
+                    BoxShadow(
+                      blurRadius: 8,
+                      color: Color(0x22000000),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                      tooltip: 'Rectangle',
+
+                      // Si l'outil rectangle est actif, on affiche
+                      // un fond légèrement différent.
+                      style: IconButton.styleFrom(
+                        backgroundColor:
+                            activeTool == 'rectangle'
+                                ? Colors.blue.shade100
+                                : Colors.transparent,
+                      ),
+
+                      icon: const Icon(Icons.crop_square),
+
+                      onPressed: () {
+                        setState(() {
+                          // Si rectangle est déjà actif, on le désactive.
+                          // Sinon, on l'active.
+                          activeTool =
+                              activeTool == 'rectangle'
+                                  ? null
+                                  : 'rectangle';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
   ],
 );
   }
