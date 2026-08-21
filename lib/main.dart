@@ -91,7 +91,65 @@ class _GridCanvasState extends State<GridCanvas> {
         height: 100,
       ),
     ];
+    /// Forme actuellement sélectionnée.
+    ///
+    /// null signifie qu'aucune forme n'est sélectionnée.
+    ///
+    /// On stocke pour l'instant directement une référence vers
+    /// l'objet DiagramShape concerné.
+    ///
+    /// Plus tard, on pourra éventuellement ne stocker que son ID.
+    DiagramShape? selectedShape;
 
+    /// Recherche la forme située sous un point de l'écran.
+    ///
+    /// [screenPosition] est une position provenant de la souris,
+    /// donc exprimée dans les coordonnées DE L'ÉCRAN.
+    ///
+    /// Nos formes, elles, sont stockées dans les coordonnées DU MONDE.
+    ///
+    /// Première étape : convertir écran -> monde.
+    ///
+    /// Formule inverse de celle utilisée pour dessiner :
+    ///
+    ///   écran = monde * scale + offset
+    ///
+    /// donc :
+    ///
+    ///   monde = (écran - offset) / scale
+    DiagramShape? _shapeAtScreenPosition(Offset screenPosition) {
+      final Offset worldPosition =
+          (screenPosition - offset) / scale;
+
+      // On parcourt les formes à l'envers.
+      //
+      // Pourquoi ?
+      //
+      // Si un jour deux formes se superposent, la dernière dessinée
+      // est visuellement au-dessus des autres.
+      //
+      // Il est donc logique que le clic sélectionne celle du dessus.
+      for (final shape in shapes.reversed) {
+        // On reconstruit le rectangle, mais cette fois
+        // EN COORDONNÉES DU MONDE.
+        final Rect bounds = Rect.fromLTWH(
+          shape.position.dx,
+          shape.position.dy,
+          shape.width,
+          shape.height,
+        );
+
+        // contains() répond simplement :
+        //
+        // "ce point est-il à l'intérieur du rectangle ?"
+        if (bounds.contains(worldPosition)) {
+          return shape;
+        }
+      }
+
+      // Le clic était dans le vide.
+      return null;
+    }
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
       //
@@ -183,6 +241,22 @@ class _GridCanvasState extends State<GridCanvas> {
       /// capture les interactions, même si elle est visuellement vide.
       behavior: HitTestBehavior.opaque,
 
+    onTapDown: (details) {
+      // details.localPosition = position du clic dans le widget,
+      // donc dans les coordonnées de l'écran.
+      final DiagramShape? shape =
+          _shapeAtScreenPosition(details.localPosition);
+
+      setState(() {
+        selectedShape = shape;
+      });
+
+      if (shape != null) {
+        debugPrint('Forme sélectionnée : ${shape.id}');
+      } else {
+        debugPrint('Aucune forme sélectionnée');
+      }
+    },
       /// Cette fonction est appelée pendant un clic-glisser.
       ///
       /// details.delta représente le déplacement DEPUIS
@@ -208,6 +282,7 @@ class _GridCanvasState extends State<GridCanvas> {
           /// nouvel offset = (105, 48)
           offset += details.delta;
         });
+
       },
 
       /// SizedBox.expand force son enfant
@@ -227,6 +302,7 @@ class _GridCanvasState extends State<GridCanvas> {
                 offset: offset,
                 scale: scale,
                 shapes: shapes,
+                selectedShape: selectedShape,
             ),
         ),
       ),
@@ -281,6 +357,7 @@ class GridPainter extends CustomPainter {
     required this.offset,
     required this.scale,
     required this.shapes,
+    required this.selectedShape,
   });
 
   /// Décalage du canevas reçu depuis GridCanvas.
@@ -289,9 +366,13 @@ class GridPainter extends CustomPainter {
   // Niveau de zoom actuel transmis par GridCanvas.
   final double scale;
 
-    /// Formes du diagramme à dessiner.
-    final List<DiagramShape> shapes;
+  /// Formes du diagramme à dessiner.
+  final List<DiagramShape> shapes;
 
+  /// Forme actuellement sélectionnée.
+  ///
+  /// null = aucune sélection.
+  final DiagramShape? selectedShape;
   /// Taille d'une case de la grille.
   ///
   /// Pour l'instant :
@@ -439,11 +520,11 @@ class GridPainter extends CustomPainter {
       // Conversion de la position monde -> écran.
       final Offset screenPosition =
           shape.position * scale + offset;
-    
+
       // Conversion des dimensions monde -> écran.
       final double screenWidth = shape.width * scale;
       final double screenHeight = shape.height * scale;
-    
+
       // Rect.fromLTWH signifie :
       //
       // Left
@@ -462,7 +543,7 @@ class GridPainter extends CustomPainter {
         screenWidth,
         screenHeight,
       );
-    
+
       // Pour l'instant, notre rectangle est simplement :
       //
       // - fond blanc ;
@@ -473,16 +554,52 @@ class GridPainter extends CustomPainter {
       final fillPaint = Paint()
         ..color = Colors.white
         ..style = PaintingStyle.fill;
-    
+
       canvas.drawRect(rect, fillPaint);
-    
+
       // ...puis le contour par-dessus.
       final borderPaint = Paint()
         ..color = Colors.black
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
-    
+
       canvas.drawRect(rect, borderPaint);
+    // --------------------------------------------------------------
+    // Indication visuelle de sélection
+    // --------------------------------------------------------------
+    //
+    // On compare les identifiants plutôt que les objets eux-mêmes.
+    //
+    // Si cette forme est celle actuellement sélectionnée,
+    // on dessine un deuxième contour autour d'elle.
+    if (selectedShape?.id == shape.id) {
+      final selectionPaint = Paint()
+        ..color = Colors.blue
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+    
+      // inflate(4) crée un rectangle légèrement plus grand :
+      //
+      // rectangle normal :
+      // ┌─────────────┐
+      // │             │
+      // └─────────────┘
+      //
+      // sélection :
+      // ┌ - - - - - - - ┐
+      //   ┌─────────────┐
+      //   │             │
+      //   └─────────────┘
+      // └ - - - - - - - ┘
+      //
+      // Ici on laisse 4 pixels autour de la forme.
+      final Rect selectionRect = rect.inflate(4);
+    
+      canvas.drawRect(
+        selectionRect,
+        selectionPaint,
+      );
+    }
     }
   }
 
@@ -494,7 +611,10 @@ class GridPainter extends CustomPainter {
   ///
   /// Si rien n'a changé, inutile de redessiner.
   @override
+
   bool shouldRepaint(covariant GridPainter oldDelegate) {
-    return oldDelegate.offset != offset;
-  }
+     return oldDelegate.offset != offset ||
+          oldDelegate.scale != scale ||
+        oldDelegate.selectedShape?.id != selectedShape?.id;
+}
 }
