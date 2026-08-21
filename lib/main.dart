@@ -150,6 +150,16 @@ class _GridCanvasState extends State<GridCanvas> {
       // Le clic était dans le vide.
       return null;
     }
+    /// Forme actuellement en cours de déplacement.
+    ///
+    /// Attention à la différence avec selectedShape :
+    ///
+    /// selectedShape = "cette forme est sélectionnée"
+    /// draggedShape  = "je suis EN TRAIN de déplacer cette forme"
+    ///
+    /// Si draggedShape == null pendant un drag,
+    /// alors le drag sert à déplacer le canevas.
+    DiagramShape? draggedShape;
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
       //
@@ -257,6 +267,24 @@ class _GridCanvasState extends State<GridCanvas> {
         debugPrint('Aucune forme sélectionnée');
       }
     },
+    onPanStart: (details) {
+      // Au moment précis où le drag commence,
+      // on regarde ce qui se trouve sous la souris.
+      final DiagramShape? shape =
+          _shapeAtScreenPosition(details.localPosition);
+
+      setState(() {
+        // Si une forme est sous la souris,
+        // elle devient également la forme sélectionnée.
+        selectedShape = shape;
+
+        // On mémorise ce choix pour TOUTE la durée du drag.
+        //
+        // shape != null -> on déplacera cette forme.
+        // shape == null -> on déplacera le canevas.
+        draggedShape = shape;
+      });
+    },
       /// Cette fonction est appelée pendant un clic-glisser.
       ///
       /// details.delta représente le déplacement DEPUIS
@@ -266,25 +294,53 @@ class _GridCanvasState extends State<GridCanvas> {
       /// la souris bouge de 5 px vers la droite :
       /// details.delta.dx == 5
       onPanUpdate: (details) {
-        /// setState() indique à Flutter :
-        ///
-        /// "J'ai modifié une donnée qui affecte l'affichage,
-        /// reconstruis ce widget."
         setState(() {
-          /// On ajoute le déplacement de la souris
-          /// à notre position actuelle.
-          ///
-          /// Exemple :
-          ///
-          /// offset = (100, 50)
-          /// delta  = (  5, -2)
-          ///
-          /// nouvel offset = (105, 48)
-          offset += details.delta;
+          if (draggedShape != null) {
+            // --------------------------------------------------------
+            // CAS 1 : déplacement d'une forme
+            // --------------------------------------------------------
+            //
+            // details.delta est exprimé en pixels ÉCRAN.
+            //
+            // Mais la position de notre forme est exprimée
+            // en coordonnées MONDE.
+            //
+            // Il faut donc tenir compte du zoom.
+            //
+            // À 100 % :
+            //   10 pixels écran = 10 unités monde
+            //
+            // À 200 % :
+            //   10 pixels écran = 5 unités monde
+            //
+            // À 50 % :
+            //   10 pixels écran = 20 unités monde
+            //
+            // D'où :
+            //
+            //   déplacement monde = déplacement écran / scale
+            final Offset worldDelta =
+                details.delta / scale;
+      
+            draggedShape!.position += worldDelta;
+          } else {
+            // --------------------------------------------------------
+            // CAS 2 : déplacement du canevas
+            // --------------------------------------------------------
+            //
+            // Ici rien ne change par rapport à avant.
+            //
+            // offset est justement exprimé dans les coordonnées
+            // de l'écran, donc aucun / scale n'est nécessaire.
+            offset += details.delta;
+          }
         });
-
       },
-
+      onPanEnd: (details) {
+        // Le bouton/doigt est relâché :
+        // plus aucune forme n'est en cours de déplacement.
+        draggedShape = null;
+      },
       /// SizedBox.expand force son enfant
       /// à prendre toute la place disponible.
       child: SizedBox.expand(
@@ -610,11 +666,15 @@ class GridPainter extends CustomPainter {
   /// Si l'offset a changé, oui.
   ///
   /// Si rien n'a changé, inutile de redessiner.
-  @override
-
-  bool shouldRepaint(covariant GridPainter oldDelegate) {
-     return oldDelegate.offset != offset ||
-          oldDelegate.scale != scale ||
-        oldDelegate.selectedShape?.id != selectedShape?.id;
-}
+    @override
+    bool shouldRepaint(covariant GridPainter oldDelegate) {
+      // Pour le moment, on redessine à chaque reconstruction.
+      //
+      // C'est volontairement simple pendant le prototype :
+      // nos formes sont mutables, donc leur position peut changer
+      // sans que la référence de la liste "shapes" change.
+      //
+      // On optimisera plus tard si nécessaire.
+      return true;
+    }
 }
