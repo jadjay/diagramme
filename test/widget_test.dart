@@ -1,30 +1,54 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:diagramme/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets(
+    'Application starts and displays the diagram canvas',
+    (WidgetTester tester) async {
+      // ------------------------------------------------------------
+      // ARRANGE / ACT
+      // ------------------------------------------------------------
+      //
+      // On démarre notre application exactement comme Flutter
+      // le ferait normalement.
+      //
+      // pumpWidget() construit l'arbre des widgets et affiche
+      // sa première frame.
+      await tester.pumpWidget(const DiagrammeApp());
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+      // ------------------------------------------------------------
+      // ASSERT
+      // ------------------------------------------------------------
+      //
+      // Notre application doit contenir un GridCanvas.
+      //
+      // Si quelqu'un casse un jour l'écran principal et supprime
+      // accidentellement le canevas, ce test échouera.
+      expect(
+        find.byType(GridCanvas),
+        findsOneWidget,
+      );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+      // Notre canevas utilise un CustomPaint pour dessiner :
+      // - la grille
+      // - les formes
+      // - l'origine
+      //
+      // On vérifie donc qu'au moins un CustomPaint existe.
+      expect(
+        find.byType(CustomPaint),
+        findsWidgets,
+      );
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
-  });
+      // Au démarrage, notre zoom vaut 100 %.
+      //
+      // L'indicateur doit donc afficher "100 %".
+      expect(
+        find.text('100 %'),
+        findsOneWidget,
+      );
+    },
+  );
 }
