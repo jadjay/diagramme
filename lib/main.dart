@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
-
+import 'package:diagramme/models/diagram_shape.dart';
 /// Point d'entrée de l'application.
 ///
 /// C'est l'équivalent du :
@@ -71,6 +71,27 @@ class _GridCanvasState extends State<GridCanvas> {
     /// 2.0 = 200 %
     /// 0.5 = 50 %
     double scale = 1.0;
+
+    /// Toutes les formes présentes dans notre diagramme.
+    ///
+    /// Pour l'instant, cette liste contient un rectangle créé en dur.
+    /// Plus tard, elle commencera vide et l'utilisateur ajoutera
+    /// les formes avec la barre d'outils.
+    ///
+    /// Très important : les coordonnées sont celles DU MONDE.
+    final List<DiagramShape> shapes = [
+      DiagramShape(
+        id: 'rectangle-1',
+
+        // Coin supérieur gauche dans le monde.
+        position: const Offset(100, 100),
+
+        // Dimensions exprimées elles aussi en unités du monde.
+        width: 200,
+        height: 100,
+      ),
+    ];
+
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
       //
@@ -205,6 +226,7 @@ class _GridCanvasState extends State<GridCanvas> {
             painter: GridPainter(
                 offset: offset,
                 scale: scale,
+                shapes: shapes,
             ),
         ),
       ),
@@ -258,6 +280,7 @@ class GridPainter extends CustomPainter {
    GridPainter({
     required this.offset,
     required this.scale,
+    required this.shapes,
   });
 
   /// Décalage du canevas reçu depuis GridCanvas.
@@ -265,6 +288,9 @@ class GridPainter extends CustomPainter {
 
   // Niveau de zoom actuel transmis par GridCanvas.
   final double scale;
+
+    /// Formes du diagramme à dessiner.
+    final List<DiagramShape> shapes;
 
   /// Taille d'une case de la grille.
   ///
@@ -391,6 +417,73 @@ class GridPainter extends CustomPainter {
       Offset(origin.dx, origin.dy + 10),
       originPaint,
     );
+
+    // ------------------------------------------------------------------
+    // Dessin des formes du diagramme
+    // ------------------------------------------------------------------
+    //
+    // Chaque forme utilise des coordonnées DU MONDE.
+    //
+    // Pour la dessiner, nous devons donc convertir sa position
+    // vers les coordonnées de l'écran.
+    //
+    // Notre formule est toujours :
+    //
+    //   écran = monde * scale + offset
+    //
+    // Même principe pour les dimensions :
+    //
+    //   taille écran = taille monde * scale
+    //
+    for (final shape in shapes) {
+      // Conversion de la position monde -> écran.
+      final Offset screenPosition =
+          shape.position * scale + offset;
+    
+      // Conversion des dimensions monde -> écran.
+      final double screenWidth = shape.width * scale;
+      final double screenHeight = shape.height * scale;
+    
+      // Rect.fromLTWH signifie :
+      //
+      // Left
+      // Top
+      // Width
+      // Height
+      //
+      // Donc :
+      // - position X
+      // - position Y
+      // - largeur
+      // - hauteur
+      final Rect rect = Rect.fromLTWH(
+        screenPosition.dx,
+        screenPosition.dy,
+        screenWidth,
+        screenHeight,
+      );
+    
+      // Pour l'instant, notre rectangle est simplement :
+      //
+      // - fond blanc ;
+      // - contour noir ;
+      // - épaisseur 2 pixels.
+      //
+      // On dessine d'abord le fond...
+      final fillPaint = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+    
+      canvas.drawRect(rect, fillPaint);
+    
+      // ...puis le contour par-dessus.
+      final borderPaint = Paint()
+        ..color = Colors.black
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.0;
+    
+      canvas.drawRect(rect, borderPaint);
+    }
   }
 
   /// Flutter demande ici :
