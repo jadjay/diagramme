@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
 
 /// Point d'entrée de l'application.
 ///
@@ -54,22 +55,107 @@ class GridCanvas extends StatefulWidget {
 /// La convention Flutter met souvent un "_" devant les classes privées.
 /// "_GridCanvasState" n'est donc visible que dans ce fichier.
 class _GridCanvasState extends State<GridCanvas> {
-  /// Décalage actuel du canevas.
-  ///
-  /// Offset contient deux nombres :
-  /// - dx : déplacement horizontal
-  /// - dy : déplacement vertical
-  ///
-  /// Offset.zero signifie :
-  /// dx = 0
-  /// dy = 0
-  Offset offset = Offset.zero;
+    /// Décalage actuel du canevas.
+    ///
+    /// Offset contient deux nombres :
+    /// - dx : déplacement horizontal
+    /// - dy : déplacement vertical
+    ///
+    /// Offset.zero signifie :
+    /// dx = 0
+    /// dy = 0
+    Offset offset = Offset.zero;
+    /// Facteur de zoom du canevas.
+    ///
+    /// 1.0 = 100 %
+    /// 2.0 = 200 %
+    /// 0.5 = 50 %
+    double scale = 1.0;
+    void _handleMouseWheel(PointerScrollEvent event) {
+      // Position actuelle de la souris dans la fenêtre.
+      //
+      // C'est autour de CE point que nous voulons zoomer.
+      final Offset mousePosition = event.localPosition;
 
+      // On choisit un facteur multiplicatif.
+      //
+      // Molette vers le haut  -> zoom avant  : × 1.1
+      // Molette vers le bas   -> zoom arrière: ÷ 1.1
+      //
+      // Utiliser une multiplication plutôt qu'un "+ 0.1"
+      // donne un zoom plus régulier.
+      final double zoomFactor =
+          event.scrollDelta.dy < 0 ? 1.1 : 1 / 1.1;
+
+      // On calcule le nouveau niveau de zoom.
+      //
+      // clamp() impose des limites :
+      //   0.1 = 10 %
+      //   5.0 = 500 %
+      //
+      // Ça évite de pouvoir zoomer jusqu'à zéro ou l'infini.
+      final double newScale =
+          (scale * zoomFactor).clamp(0.1, 5.0);
+
+      // ---------------------------------------------------------------
+      // Partie importante : conserver le point sous la souris
+      // ---------------------------------------------------------------
+      //
+      // Notre transformation monde -> écran sera :
+      //
+      //   écran = monde * scale + offset
+      //
+      // On cherche donc d'abord quelle coordonnée DU MONDE
+      // se trouve actuellement sous la souris.
+      //
+      // En inversant la formule :
+      //
+      //   monde = (écran - offset) / scale
+      //
+      final Offset worldPointUnderMouse =
+          (mousePosition - offset) / scale;
+
+      // Maintenant nous changeons le zoom.
+      //
+      // Mais si on changeait seulement "scale", le point observé
+      // se déplacerait à l'écran.
+      //
+      // On recalcule donc offset pour que :
+      //
+      //   mousePosition =
+      //       worldPointUnderMouse * newScale + newOffset
+      //
+      // donc :
+      //
+      //   newOffset =
+      //       mousePosition - worldPointUnderMouse * newScale
+      final Offset newOffset =
+          mousePosition - worldPointUnderMouse * newScale;
+
+      setState(() {
+        scale = newScale;
+        offset = newOffset;
+      });
+    }
   @override
   Widget build(BuildContext context) {
     /// GestureDetector permet d'intercepter les gestes utilisateur :
     /// clic, glisser, double clic, etc.
-    return GestureDetector(
+    return Listener(
+      // Listener reçoit les événements "bas niveau" de la souris.
+      //
+      // Ici, on s'intéresse notamment à PointerScrollEvent,
+      // c'est-à-dire la molette.
+      onPointerSignal: (event) {
+        if (event is PointerScrollEvent) {
+          _handleMouseWheel(event);
+        }
+      },
+
+  // Notre GestureDetector reste présent à l'intérieur.
+  //
+  // Il continue de gérer le clic-glisser exactement comme avant.
+  child: GestureDetector(
       /// "opaque" signifie que toute la surface du widget
       /// capture les interactions, même si elle est visuellement vide.
       behavior: HitTestBehavior.opaque,
@@ -114,9 +200,13 @@ class _GridCanvasState extends State<GridCanvas> {
           /// Le peintre ne modifie rien :
           /// il reçoit simplement les informations
           /// dont il a besoin pour dessiner.
-          painter: GridPainter(offset: offset),
+            painter: GridPainter(
+                offset: offset,
+                scale: scale,
+            ),
         ),
       ),
+    )
     );
   }
 }
@@ -130,10 +220,16 @@ class GridPainter extends CustomPainter {
   /// Constructeur.
   ///
   /// "required" oblige l'appelant à fournir un offset.
-  GridPainter({required this.offset});
+   GridPainter({
+    required this.offset,
+    required this.scale,
+  });
 
   /// Décalage du canevas reçu depuis GridCanvas.
   final Offset offset;
+
+  // Niveau de zoom actuel transmis par GridCanvas.
+  final double scale;
 
   /// Taille d'une case de la grille.
   ///
@@ -177,13 +273,23 @@ class GridPainter extends CustomPainter {
     ///
     /// C'est ce qui donne l'impression
     /// que la grille est infinie.
-    final double startX = offset.dx % gridSize;
-    final double startY = offset.dy % gridSize;
-
+    // Taille APPARENTE d'une case à l'écran.
+    //
+    // Dans le monde, une case fait toujours 40 unités.
+    //
+    // À  50 % -> 20 pixels à l'écran
+    // À 100 % -> 40 pixels
+    // À 200 % -> 80 pixels
+    final double scaledGridSize = gridSize * scale;
+    
+    // On cherche où doit commencer la première ligne visible,
+    // mais cette fois avec la taille tenant compte du zoom.
+    final double startX = offset.dx % scaledGridSize;
+    final double startY = offset.dy % scaledGridSize;
     /// Dessine les lignes verticales.
     ///
     /// On part de startX et on avance d'une case à chaque fois.
-    for (double x = startX; x <= size.width; x += gridSize) {
+    for (double x = startX; x <= size.width; x += scaledGridSize) {
       canvas.drawLine(
         /// Point de départ : haut de la fenêtre.
         Offset(x, 0),
@@ -196,7 +302,7 @@ class GridPainter extends CustomPainter {
     }
 
     /// Dessine les lignes horizontales.
-    for (double y = startY; y <= size.height; y += gridSize) {
+    for (double y = startY; y <= size.height; y += scaledGridSize) {
       canvas.drawLine(
         /// Départ : bord gauche.
         Offset(0, y),
@@ -229,21 +335,21 @@ class GridPainter extends CustomPainter {
     //   positionEcran = positionMonde + offset
     //
     // Plus tard, avec le zoom, cette formule évoluera.
-    
+
     final originPaint = Paint()
       ..color = Colors.red
       ..strokeWidth = 2.0;
-    
+
     // Position de l'origine dans les coordonnées de l'écran.
     final Offset origin = offset;
-    
+
     // Petite croix horizontale.
     canvas.drawLine(
       Offset(origin.dx - 10, origin.dy),
       Offset(origin.dx + 10, origin.dy),
       originPaint,
     );
-    
+
     // Petite croix verticale.
     canvas.drawLine(
       Offset(origin.dx, origin.dy - 10),
