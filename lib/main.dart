@@ -207,6 +207,49 @@ class GridPainter extends CustomPainter {
         paint,
       );
     }
+    // ------------------------------------------------------------------
+    // Dessin de l'origine du "monde"
+    // ------------------------------------------------------------------
+    //
+    // Notre monde possède un point fixe (0, 0).
+    //
+    // Au démarrage :
+    //   offset = (0, 0)
+    // donc l'origine se trouve en haut à gauche.
+    //
+    // Si on déplace le canevas de :
+    //   offset = (200, 100)
+    //
+    // alors le point (0, 0) du monde apparaît à l'écran en :
+    //   x = 200
+    //   y = 100
+    //
+    // Pour le moment, la conversion monde -> écran est donc simplement :
+    //
+    //   positionEcran = positionMonde + offset
+    //
+    // Plus tard, avec le zoom, cette formule évoluera.
+    
+    final originPaint = Paint()
+      ..color = Colors.red
+      ..strokeWidth = 2.0;
+    
+    // Position de l'origine dans les coordonnées de l'écran.
+    final Offset origin = offset;
+    
+    // Petite croix horizontale.
+    canvas.drawLine(
+      Offset(origin.dx - 10, origin.dy),
+      Offset(origin.dx + 10, origin.dy),
+      originPaint,
+    );
+    
+    // Petite croix verticale.
+    canvas.drawLine(
+      Offset(origin.dx, origin.dy - 10),
+      Offset(origin.dx, origin.dy + 10),
+      originPaint,
+    );
   }
 
   /// Flutter demande ici :
