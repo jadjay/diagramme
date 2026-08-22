@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:diagramme/models/diagram_shape.dart';
 import 'package:diagramme/models/diagram_connector.dart';
 import 'package:diagramme/painters/diagram_painter.dart';
+import 'package:diagramme/widgets/diagram_toolbar.dart';
 /// Point d'entrée de l'application.
 ///
 /// C'est l'équivalent du :
@@ -721,108 +722,24 @@ class _GridCanvasState extends State<GridCanvas> {
       ),
     ),
 
-    // Outil rectangle
     Positioned(
-              left: 16,
-              top: 16,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(8),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 8,
-                      color: Color(0x22000000),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                      IconButton(
-                        tooltip: 'Sélection',
+      left: 16,
+      top: 16,
+      child: DiagramToolbar(
+        activeTool: activeTool,
+    
+        onToolSelected: (tool) {
+          setState(() {
+            activeTool = tool;
+    
+            // Si on quitte ou réactive le mode connecteur,
+            // on repart sans première extrémité mémorisée.
+            connectorStartShape = null;
+          });
+        },
+      ),
+    ),
 
-                        style: IconButton.styleFrom(
-                          backgroundColor:
-                              activeTool == ToolType.select
-                                  ? Colors.blue.shade100
-                                  : Colors.transparent,
-                        ),
-
-                        icon: const Icon(Icons.near_me_outlined),
-
-                        onPressed: () {
-                          setState(() {
-                            activeTool = ToolType.select;
-
-                            // Si on abandonne un connecteur en cours,
-                            // on oublie sa première extrémité.
-                            connectorStartShape = null;
-                          });
-                        },
-                      ),
-
-                      IconButton(
-                       tooltip: 'Rectangle',
-                                             style: IconButton.styleFrom(
-                         backgroundColor:
-                             activeTool == ToolType.rectangle
-                                 ? Colors.blue.shade100
-                                 : Colors.transparent,
-                       ),
-                                             icon: const Icon(Icons.crop_square),
-                                             onPressed: () {
-                         setState(() {
-                           activeTool = ToolType.rectangle;
-                         });
-                       },
-                      ),
-                      IconButton(
-                        tooltip: 'Cercle',
-
-                        style: IconButton.styleFrom(
-                          backgroundColor:
-                              activeTool == ToolType.circle
-                                  ? Colors.blue.shade100
-                                  : Colors.transparent,
-                        ),
-
-                        icon: const Icon(Icons.circle_outlined),
-
-                        onPressed: () {
-                          setState(() {
-                            activeTool = ToolType.circle;
-                          });
-                        },
-                      ),
-                      IconButton(
-                        tooltip: 'Connecteur',
-
-                        style: IconButton.styleFrom(
-                          backgroundColor:
-                              activeTool == ToolType.connector
-                                  ? Colors.blue.shade100
-                                  : Colors.transparent,
-                        ),
-
-                        icon: const Icon(Icons.arrow_right_alt),
-
-                        onPressed: () {
-                          setState(() {
-                            // Active ou désactive l'outil.
-                            activeTool = ToolType.connector;
-
-                            // Si on désactive l'outil en cours de route,
-                            // on oublie aussi la première forme choisie.
-                            connectorStartShape = null;
-                          });
-                        },
-                      ),
-                  ],
-                ),
-              ),
-            ),
   ],
 );
   }
