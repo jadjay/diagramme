@@ -4,6 +4,7 @@ import 'package:diagramme/models/diagram_shape.dart';
 import 'package:diagramme/models/diagram_connector.dart';
 import 'package:diagramme/painters/diagram_painter.dart';
 import 'package:diagramme/widgets/diagram_toolbar.dart';
+import 'package:diagramme/widgets/zoom_indicator.dart';
 /// Point d'entrée de l'application.
 ///
 /// C'est l'équivalent du :
@@ -692,33 +693,11 @@ class _GridCanvasState extends State<GridCanvas> {
 
         ),
 
-    // Petit indicateur de zoom affiché au-dessus du canevas.
-    //
-    // Positioned permet de placer précisément un widget
-    // dans le Stack.
     Positioned(
       right: 16,
       bottom: 16,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 10,
-          vertical: 6,
-        ),
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.65),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          // scale vaut par exemple :
-          // 1.0  -> 100 %
-          // 1.5  -> 150 %
-          // 0.75 -> 75 %
-          '${(scale * 100).round()} %',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 13,
-          ),
-        ),
+      child: ZoomIndicator(
+        scale: scale,
       ),
     ),
 
@@ -727,11 +706,11 @@ class _GridCanvasState extends State<GridCanvas> {
       top: 16,
       child: DiagramToolbar(
         activeTool: activeTool,
-    
+
         onToolSelected: (tool) {
           setState(() {
             activeTool = tool;
-    
+
             // Si on quitte ou réactive le mode connecteur,
             // on repart sans première extrémité mémorisée.
             connectorStartShape = null;
