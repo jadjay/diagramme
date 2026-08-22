@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:diagramme/main.dart';
-
+import 'package:diagramme/widgets/diagram_canvas.dart';
 void main() {
   testWidgets(
     'Application starts and displays the diagram canvas',
