@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:diagramme/models/diagram_shape.dart';
+import 'package:diagramme/models/diagram_connector.dart';
 /// Point d'entrée de l'application.
 ///
 /// C'est l'équivalent du :
@@ -75,7 +76,56 @@ class _GridCanvasState extends State<GridCanvas> {
     /// Le canevas démarre maintenant réellement vide.
     /// Les formes seront ajoutées par l'utilisateur.
     final List<DiagramShape> shapes = [];
+    // TEST final List<DiagramShape> shapes = [
+    // TEST   DiagramShape(
+    // TEST     id: 'circle-1',
+    // TEST     type: ShapeType.circle,
+    // TEST 
+    // TEST     // Position du coin supérieur gauche
+    // TEST     // de sa boîte englobante.
+    // TEST     position: const Offset(400, 200),
+    // TEST 
+    // TEST     // width == height => cercle.
+    // TEST     width: 120,
+    // TEST     height: 120,
+    // TEST   ),
+    // TEST   DiagramShape(
+    // TEST     id: 'rectangle-2',
+    // TEST     type: ShapeType.rectangle,
+    // TEST 
+    // TEST     // Position du coin supérieur gauche
+    // TEST     // de sa boîte englobante.
+    // TEST     position: const Offset(800, 200),
+    // TEST 
+    // TEST     // width == height => cercle.
+    // TEST     width: 120,
+    // TEST     height: 120,
+    // TEST   ),
+    // TEST ];
+    
+    /// Tous les connecteurs présents dans le diagramme.
+    ///
+    /// Pour l'instant la liste est vide.
+    /// On va bientôt y ajouter un connecteur de test.
+    final List<DiagramConnector> connectors = [];
+    // TEST final List<DiagramConnector> connectors = [
+    // TEST   DiagramConnector(
+    // TEST     id: 'connector-test',
+    // TEST     fromShapeId: 'circle-1',
+    // TEST     toShapeId: 'rectangle-2',
+    // TEST   ),
+    // TEST ];
 
+    /// Première forme choisie lors de la création d'un connecteur.
+    ///
+    /// null = aucune première extrémité sélectionnée.
+    ///
+    /// Workflow :
+    /// 1. outil connector actif
+    /// 2. clic sur forme A -> connectorStartShape = A
+    /// 3. clic sur forme B -> création du connecteur
+    /// 4. connectorStartShape redevient null
+    DiagramShape? connectorStartShape;
 
     /// Forme actuellement sélectionnée.
     ///
@@ -348,6 +398,8 @@ class _GridCanvasState extends State<GridCanvas> {
 
         setState(() {
           switch (activeTool!) {
+            case ToolType.select:
+              activeTool = null;
             case ToolType.rectangle:
               shapes.add(
                 DiagramShape(
@@ -373,13 +425,79 @@ class _GridCanvasState extends State<GridCanvas> {
                   height: 120,
                 ),
               );
+            
+            case ToolType.connector:
+              // Pour un connecteur, la position exacte du clic
+              // nous intéresse moins que la FORME située sous ce clic.
+              //
+              // _shapeAtScreenPosition() fait déjà tout le travail :
+              // - conversion écran -> monde
+              // - hit-testing rectangle/cercle
+              final DiagramShape? clickedShape =
+                  _shapeAtScreenPosition(details.localPosition);
+            
+              // Un clic dans le vide ne fait rien.
+              if (clickedShape == null) {
+                return;
+              }
+            
+              if (connectorStartShape == null) {
+                // ----------------------------------------------------------
+                // PREMIER CLIC
+                // ----------------------------------------------------------
+                //
+                // On mémorise simplement la forme de départ.
+                connectorStartShape = clickedShape;
+            
+                // On la sélectionne aussi visuellement.
+                selectedShape = clickedShape;
+            
+                debugPrint(
+                  'Début connecteur : ${clickedShape.id}',
+                );
+              } else {
+                // ----------------------------------------------------------
+                // DEUXIÈME CLIC
+                // ----------------------------------------------------------
+                //
+                // On possède maintenant :
+                //
+                // connectorStartShape -> forme A
+                // clickedShape        -> forme B
+            
+                // Pour l'instant, on interdit A -> A.
+                if (connectorStartShape!.id == clickedShape.id) {
+                  return;
+                }
+            
+                connectors.add(
+                  DiagramConnector(
+                    id: 'connector-${connectors.length + 1}',
+                    fromShapeId: connectorStartShape!.id,
+                    toShapeId: clickedShape.id,
+                  ),
+                );
+            
+                debugPrint(
+                  'Connecteur : '
+                  '${connectorStartShape!.id} -> ${clickedShape.id}',
+                );
+            
+                // Le connecteur est terminé.
+                connectorStartShape = null;
+            
+                // Et on revient au mode normal.
+                activeTool = null;
+            
+                selectedShape = clickedShape;
+              }
           }
 
           // Un outil crée une seule forme.
           //
           // Après création, retour automatique
           // au mode sélection/déplacement.
-          activeTool = null;
+          // activeTool = null;
         });
 
         return;
@@ -493,6 +611,7 @@ class _GridCanvasState extends State<GridCanvas> {
                 offset: offset,
                 scale: scale,
                 shapes: shapes,
+                connectors: connectors,
                 selectedShape: selectedShape,
             ),
         ),
@@ -551,6 +670,29 @@ class _GridCanvasState extends State<GridCanvas> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                       IconButton(
+                        tooltip: 'Sélection',
+
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              activeTool == ToolType.select
+                                  ? Colors.blue.shade100
+                                  : Colors.transparent,
+                        ),
+
+                        icon: const Icon(Icons.near_me_outlined),
+
+                        onPressed: () {
+                          setState(() {
+                            activeTool = ToolType.select;
+
+                            // Si on abandonne un connecteur en cours,
+                            // on oublie sa première extrémité.
+                            connectorStartShape = null;
+                          });
+                        },
+                      ),
+
+                      IconButton(
                        tooltip: 'Rectangle',
                                              style: IconButton.styleFrom(
                          backgroundColor:
@@ -589,6 +731,32 @@ class _GridCanvasState extends State<GridCanvas> {
                           });
                         },
                       ),
+                      IconButton(
+                        tooltip: 'Connecteur',
+
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              activeTool == ToolType.connector
+                                  ? Colors.blue.shade100
+                                  : Colors.transparent,
+                        ),
+
+                        icon: const Icon(Icons.arrow_right_alt),
+
+                        onPressed: () {
+                          setState(() {
+                            // Active ou désactive l'outil.
+                            activeTool =
+                                activeTool == ToolType.connector
+                                    ? null
+                                    : ToolType.connector;
+
+                            // Si on désactive l'outil en cours de route,
+                            // on oublie aussi la première forme choisie.
+                            connectorStartShape = null;
+                          });
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -611,6 +779,7 @@ class GridPainter extends CustomPainter {
     required this.offset,
     required this.scale,
     required this.shapes,
+    required this.connectors,
     required this.selectedShape,
   });
 
@@ -623,6 +792,8 @@ class GridPainter extends CustomPainter {
   /// Formes du diagramme à dessiner.
   final List<DiagramShape> shapes;
 
+  final List<DiagramConnector> connectors;
+  
   /// Forme actuellement sélectionnée.
   ///
   /// null = aucune sélection.
@@ -634,6 +805,21 @@ class GridPainter extends CustomPainter {
   ///
   /// Ce n'est PAS encore un centimètre réel.
   static const double gridSize = 40.0;
+
+  /// Recherche une forme à partir de son identifiant.
+  ///
+  /// Un connecteur ne possède que les IDs de ses extrémités.
+  /// Il faut donc pouvoir retrouver les objets correspondants.
+  DiagramShape? _shapeById(String id) {
+    for (final shape in shapes) {
+      if (shape.id == id) {
+        return shape;
+      }
+    }
+
+    // Aucun objet avec cet ID.
+    return null;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -752,6 +938,68 @@ class GridPainter extends CustomPainter {
       Offset(origin.dx, origin.dy + 10),
       originPaint,
     );
+
+    // ------------------------------------------------------------------
+    // Dessin des connecteurs
+    // ------------------------------------------------------------------
+    //
+    // IMPORTANT : nous dessinons les connecteurs AVANT les formes.
+    //
+    // Ainsi :
+    //
+    //      rectangle ───────── cercle
+    //
+    // la ligne passe visuellement "derrière" les formes.
+    //
+    // Pour cette première version, on relie simplement
+    // le CENTRE des deux formes.
+    for (final connector in connectors) {
+      // Le connecteur connaît seulement les IDs.
+      // On retrouve donc les deux formes.
+      final DiagramShape? fromShape =
+          _shapeById(connector.fromShapeId);
+
+      final DiagramShape? toShape =
+          _shapeById(connector.toShapeId);
+
+      // Un connecteur invalide ne doit jamais faire planter
+      // tout le rendu.
+      //
+      // Si une des formes n'existe plus, on ignore simplement
+      // ce connecteur.
+      if (fromShape == null || toShape == null) {
+        continue;
+      }
+
+      // Centre de la première forme EN COORDONNÉES MONDE.
+      final Offset fromCenter = Offset(
+        fromShape.position.dx + fromShape.width / 2,
+        fromShape.position.dy + fromShape.height / 2,
+      );
+
+      // Centre de la seconde.
+      final Offset toCenter = Offset(
+        toShape.position.dx + toShape.width / 2,
+        toShape.position.dy + toShape.height / 2,
+      );
+
+      // Conversion monde -> écran.
+      final Offset fromScreen =
+          fromCenter * scale + offset;
+
+      final Offset toScreen =
+          toCenter * scale + offset;
+
+      final connectorPaint = Paint()
+        ..color = Colors.black
+        ..strokeWidth = 2.0;
+
+      canvas.drawLine(
+        fromScreen,
+        toScreen,
+        connectorPaint,
+      );
+    }
 
     // ------------------------------------------------------------------
     // Dessin des formes du diagramme
@@ -885,15 +1133,15 @@ class GridPainter extends CustomPainter {
   /// Si l'offset a changé, oui.
   ///
   /// Si rien n'a changé, inutile de redessiner.
-    @override
-    bool shouldRepaint(covariant GridPainter oldDelegate) {
-      // Pour le moment, on redessine à chaque reconstruction.
-      //
-      // C'est volontairement simple pendant le prototype :
-      // nos formes sont mutables, donc leur position peut changer
-      // sans que la référence de la liste "shapes" change.
-      //
-      // On optimisera plus tard si nécessaire.
-      return true;
-    }
+  @override
+  bool shouldRepaint(covariant GridPainter oldDelegate) {
+    // Pour le moment, on redessine à chaque reconstruction.
+    //
+    // C'est volontairement simple pendant le prototype :
+    // nos formes sont mutables, donc leur position peut changer
+    // sans que la référence de la liste "shapes" change.
+    //
+    // On optimisera plus tard si nécessaire.
+    return true;
+  }
 }

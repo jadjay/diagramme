@@ -51,10 +51,12 @@ enum ShapeType {
 ///
 /// Mais on prépare une structure propre pour la suite.
 enum ToolType {
+  select,
   rectangle,
   circle,
+  connector,
 }
-
+ToolType activeTool = ToolType.select;
 class DiagramShape {
   DiagramShape({
     required this.id,

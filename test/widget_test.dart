@@ -140,4 +140,86 @@ testWidgets(
     );
   },
 );
+testWidgets(
+  'Selection tool is available',
+  (WidgetTester tester) async {
+    await tester.pumpWidget(const DiagrammeApp());
+
+    expect(
+      find.byTooltip('Sélection'),
+      findsOneWidget,
+    );
+  },
+);
+
+testWidgets(
+  'Connector tool can connect two shapes',
+  (WidgetTester tester) async {
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // ------------------------------------------------------------
+    // 1. Créer un rectangle
+    // ------------------------------------------------------------
+    await tester.tap(
+      find.byTooltip('Rectangle'),
+    );
+    await tester.pump();
+
+    await tester.tapAt(
+      const Offset(300, 250),
+    );
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // 2. Créer un cercle
+    // ------------------------------------------------------------
+    await tester.tap(
+      find.byTooltip('Cercle'),
+    );
+    await tester.pump();
+
+    await tester.tapAt(
+      const Offset(600, 250),
+    );
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // 3. Activer l'outil connecteur
+    // ------------------------------------------------------------
+    await tester.tap(
+      find.byTooltip('Connecteur'),
+    );
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // 4. Cliquer sur les deux formes
+    // ------------------------------------------------------------
+    //
+    // Les positions choisies sont volontairement au centre
+    // approximatif des formes créées plus haut.
+    await tester.tapAt(
+      const Offset(350, 300),
+    );
+    await tester.pump();
+
+    await tester.tapAt(
+      const Offset(660, 310),
+    );
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // ASSERT
+    // ------------------------------------------------------------
+    //
+    // Pour l'instant, l'état du diagramme n'est pas encore
+    // exposé directement aux tests.
+    //
+    // On valide donc que toute la séquence utilisateur complète
+    // s'exécute sans exception.
+    expect(
+      tester.takeException(),
+      isNull,
+    );
+  },
+);
 }
