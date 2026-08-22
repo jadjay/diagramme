@@ -44,6 +44,16 @@ enum ShapeType {
   rectangle,
   circle,
 }
+/// Outils disponibles dans la barre d'outils.
+///
+/// select n'est pas encore utilisé explicitement :
+/// pour l'instant "aucun outil actif" joue ce rôle.
+///
+/// Mais on prépare une structure propre pour la suite.
+enum ToolType {
+  rectangle,
+  circle,
+}
 
 class DiagramShape {
   DiagramShape({

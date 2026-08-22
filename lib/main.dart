@@ -76,6 +76,7 @@ class _GridCanvasState extends State<GridCanvas> {
     /// Les formes seront ajoutées par l'utilisateur.
     final List<DiagramShape> shapes = [];
 
+
     /// Forme actuellement sélectionnée.
     ///
     /// null signifie qu'aucune forme n'est sélectionnée.
@@ -114,26 +115,94 @@ class _GridCanvasState extends State<GridCanvas> {
       // est visuellement au-dessus des autres.
       //
       // Il est donc logique que le clic sélectionne celle du dessus.
-      for (final shape in shapes.reversed) {
-        // On reconstruit le rectangle, mais cette fois
-        // EN COORDONNÉES DU MONDE.
-        final Rect bounds = Rect.fromLTWH(
-          shape.position.dx,
-          shape.position.dy,
-          shape.width,
-          shape.height,
-        );
+    for (final shape in shapes.reversed) {
+      // ------------------------------------------------------------
+      // Hit-testing
+      // ------------------------------------------------------------
+      //
+      // "Hit-testing" = déterminer si un point se trouve réellement
+      // à l'intérieur d'une forme.
+      //
+      // worldPosition est déjà exprimé dans les coordonnées du monde.
+      //
+      // Donc tout le calcul qui suit est indépendant :
+      // - du zoom ;
+      // - du pan ;
+      // - de la taille de la fenêtre.
+      switch (shape.type) {
+        case ShapeType.rectangle:
+          // Pour un rectangle, Flutter sait déjà répondre
+          // directement à la question grâce à Rect.contains().
+          final Rect bounds = Rect.fromLTWH(
+            shape.position.dx,
+            shape.position.dy,
+            shape.width,
+            shape.height,
+          );
 
-        // contains() répond simplement :
-        //
-        // "ce point est-il à l'intérieur du rectangle ?"
-        if (bounds.contains(worldPosition)) {
-          return shape;
-        }
+          if (bounds.contains(worldPosition)) {
+            return shape;
+          }
+
+        case ShapeType.circle:
+          // Notre cercle est défini par une boîte :
+          //
+          // position ----+
+          //     ↓        |
+          //     ┌─────────────┐
+          //     │    *****    │
+          //     │  **     **  │
+          //     │ *    •    * │
+          //     │  **     **  │
+          //     │    *****    │
+          //     └─────────────┘
+          //
+          //                  • = centre
+          //
+          // Comme width == height pour nos cercles,
+          // le rayon vaut simplement width / 2.
+
+          final double radius = shape.width / 2;
+
+          // Calcul des coordonnées du centre du cercle.
+          final Offset center = Offset(
+            shape.position.dx + radius,
+            shape.position.dy + radius,
+          );
+
+          // Distance entre le point cliqué et le centre.
+          //
+          // Offset possède directement la propriété "distance".
+          //
+          // On calcule d'abord le vecteur :
+          //
+          //     clic - centre
+          //
+          // puis sa longueur.
+          final double distanceFromCenter =
+              (worldPosition - center).distance;
+
+          // Géométrie toute simple :
+          //
+          // distance <= rayon
+          //
+          //             clic
+          //               •
+          //              /
+          //             / distance
+          //            /
+          //           • centre
+          //
+          // Si la distance est inférieure au rayon,
+          // le clic est dans le cercle.
+          if (distanceFromCenter <= radius) {
+            return shape;
+          }
       }
+    }
 
-      // Le clic était dans le vide.
-      return null;
+    return null;
+
     }
     /// Forme actuellement en cours de déplacement.
     ///
@@ -146,12 +215,11 @@ class _GridCanvasState extends State<GridCanvas> {
     /// alors le drag sert à déplacer le canevas.
     DiagramShape? draggedShape;
 
-    /// Outil actuellement sélectionné.
+    /// Outil de création actuellement actif.
     ///
-    /// Pour l'instant :
-    /// - null = mode normal / sélection
-    /// - 'rectangle' = le prochain clic crée un rectangle
-    String? activeTool;
+    /// null signifie :
+    /// mode normal de sélection/déplacement.
+    ToolType? activeTool;
     
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
@@ -269,33 +337,48 @@ class _GridCanvasState extends State<GridCanvas> {
       //
       // Le clic ne sert plus à sélectionner.
       // Il sert à créer une nouvelle forme.
-      if (activeTool == 'rectangle') {
-        // Conversion écran -> monde.
+      if (activeTool != null) {
+        // Le clic reçu est en coordonnées écran.
+        //
+        // Nos formes vivent en coordonnées monde :
+        //
+        // monde = (écran - offset) / scale
         final Offset worldPosition =
             (details.localPosition - offset) / scale;
 
         setState(() {
-          shapes.add(
-            DiagramShape(
-              // ID provisoire basé sur le nombre de formes.
-              //
-              // Plus tard on utilisera quelque chose de plus robuste.
-              id: 'rectangle-${shapes.length + 1}',
-              type: ShapeType.rectangle,
-              // Le rectangle apparaît à l'endroit cliqué
-              // dans le monde.
-              position: worldPosition,
+          switch (activeTool!) {
+            case ToolType.rectangle:
+              shapes.add(
+                DiagramShape(
+                  id: 'rectangle-${shapes.length + 1}',
+                  type: ShapeType.rectangle,
+                  position: worldPosition,
+                  width: 200,
+                  height: 100,
+                ),
+              );
 
-              // Taille par défaut provisoire.
-              width: 200,
-              height: 100,
-            ),
-          );
+            case ToolType.circle:
+              shapes.add(
+                DiagramShape(
+                  id: 'circle-${shapes.length + 1}',
+                  type: ShapeType.circle,
+                  position: worldPosition,
 
-          // On repasse immédiatement en mode normal.
+                  // width == height :
+                  // notre boîte englobante est carrée,
+                  // donc drawOval() produira un cercle.
+                  width: 120,
+                  height: 120,
+                ),
+              );
+          }
+
+          // Un outil crée une seule forme.
           //
-          // Donc : un clic sur l'outil rectangle
-          // crée UN rectangle, puis l'outil se désactive.
+          // Après création, retour automatique
+          // au mode sélection/déplacement.
           activeTool = null;
         });
 
@@ -467,31 +550,45 @@ class _GridCanvasState extends State<GridCanvas> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    IconButton(
-                      tooltip: 'Rectangle',
-
-                      // Si l'outil rectangle est actif, on affiche
-                      // un fond légèrement différent.
-                      style: IconButton.styleFrom(
-                        backgroundColor:
-                            activeTool == 'rectangle'
-                                ? Colors.blue.shade100
-                                : Colors.transparent,
+                      IconButton(
+                       tooltip: 'Rectangle',
+                                             style: IconButton.styleFrom(
+                         backgroundColor:
+                             activeTool == ToolType.rectangle
+                                 ? Colors.blue.shade100
+                                 : Colors.transparent,
+                       ),
+                                             icon: const Icon(Icons.crop_square),
+                                             onPressed: () {
+                         setState(() {
+                           activeTool =
+                               activeTool == ToolType.rectangle
+                                   ? null
+                                   : ToolType.rectangle;
+                         });
+                       },
                       ),
+                      IconButton(
+                        tooltip: 'Cercle',
 
-                      icon: const Icon(Icons.crop_square),
+                        style: IconButton.styleFrom(
+                          backgroundColor:
+                              activeTool == ToolType.circle
+                                  ? Colors.blue.shade100
+                                  : Colors.transparent,
+                        ),
 
-                      onPressed: () {
-                        setState(() {
-                          // Si rectangle est déjà actif, on le désactive.
-                          // Sinon, on l'active.
-                          activeTool =
-                              activeTool == 'rectangle'
-                                  ? null
-                                  : 'rectangle';
-                        });
-                      },
-                    ),
+                        icon: const Icon(Icons.circle_outlined),
+
+                        onPressed: () {
+                          setState(() {
+                            activeTool =
+                                activeTool == ToolType.circle
+                                    ? null
+                                    : ToolType.circle;
+                          });
+                        },
+                      ),
                   ],
                 ),
               ),
@@ -673,6 +770,7 @@ class GridPainter extends CustomPainter {
     //
     //   taille écran = taille monde * scale
     //
+    
     for (final shape in shapes) {
       // Conversion de la position monde -> écran.
       final Offset screenPosition =
@@ -712,15 +810,35 @@ class GridPainter extends CustomPainter {
         ..color = Colors.white
         ..style = PaintingStyle.fill;
 
-      canvas.drawRect(rect, fillPaint);
-
       // ...puis le contour par-dessus.
       final borderPaint = Paint()
         ..color = Colors.black
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
 
-      canvas.drawRect(rect, borderPaint);
+    // --------------------------------------------------------------
+    // Dessin selon le type de forme
+    // --------------------------------------------------------------
+
+    switch (shape.type) {
+      case ShapeType.rectangle:
+        // Pour un rectangle, notre "rect" est directement
+        // la géométrie à dessiner.
+        canvas.drawRect(rect, fillPaint);
+        canvas.drawRect(rect, borderPaint);
+
+      case ShapeType.circle:
+        // Pour un cercle, nous utilisons le même Rect comme
+        // boîte englobante.
+        //
+        // drawOval() dessine une ellipse qui remplit exactement
+        // cette boîte.
+        //
+        // Si width == height, nous obtenons donc un vrai cercle.
+        canvas.drawOval(rect, fillPaint);
+        canvas.drawOval(rect, borderPaint);
+    }
+
     // --------------------------------------------------------------
     // Indication visuelle de sélection
     // --------------------------------------------------------------
