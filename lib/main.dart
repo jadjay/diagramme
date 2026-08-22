@@ -56,6 +56,129 @@ class GridCanvas extends StatefulWidget {
 /// La convention Flutter met souvent un "_" devant les classes privées.
 /// "_GridCanvasState" n'est donc visible que dans ce fichier.
 class _GridCanvasState extends State<GridCanvas> {
+
+  /// Crée un rectangle à la position écran donnée.
+  ///
+  /// La souris nous fournit une position dans les coordonnées
+  /// de l'écran.
+  ///
+  /// Notre modèle stocke les formes dans les coordonnées du monde.
+  ///
+  /// On effectue donc ici la conversion :
+  ///
+  ///   monde = (écran - offset) / scale
+  ///
+  /// Toute la logique spécifique à la création d'un rectangle
+  /// est maintenant isolée dans cette méthode.
+  void _createRectangle(Offset screenPosition) {
+    final Offset worldPosition =
+        (screenPosition - offset) / scale;
+
+    shapes.add(
+      DiagramShape(
+        id: 'rectangle-${shapes.length + 1}',
+        type: ShapeType.rectangle,
+        position: worldPosition,
+        width: 200,
+        height: 100,
+      ),
+    );
+  }
+
+
+  /// Crée un cercle à la position écran donnée.
+  ///
+  /// Comme pour le rectangle, la position reçue appartient
+  /// au système de coordonnées de l'écran.
+  ///
+  /// On la convertit donc en coordonnées du monde avant
+  /// de créer notre objet DiagramShape.
+  ///
+  /// Pour l'instant, un cercle est représenté par une boîte
+  /// englobante carrée de 120 × 120 unités.
+  ///
+  /// Comme width == height, GridPainter dessinera un vrai cercle
+  /// avec drawOval().
+  void _createCircle(Offset screenPosition) {
+    final Offset worldPosition =
+        (screenPosition - offset) / scale;
+  
+    shapes.add(
+      DiagramShape(
+        id: 'circle-${shapes.length + 1}',
+        type: ShapeType.circle,
+        position: worldPosition,
+        width: 120,
+        height: 120,
+      ),
+    );
+  }
+
+  /// Gère un clic utilisateur lorsque l'outil Connecteur est actif.
+  ///
+  /// Le workflow est volontairement simple :
+  ///
+  /// 1. Premier clic sur une forme
+  ///    -> on mémorise la forme de départ.
+  ///
+  /// 2. Deuxième clic sur une autre forme
+  ///    -> on crée le connecteur.
+  ///
+  /// 3. On réinitialise l'état temporaire.
+  void _handleConnectorClick(Offset screenPosition) {
+    // Cherche la forme située sous le clic.
+    final DiagramShape? clickedShape =
+        _shapeAtScreenPosition(screenPosition);
+
+    // Clic dans le vide :
+    // on ne fait rien et on garde l'outil connecteur actif.
+    if (clickedShape == null) {
+      return;
+    }
+
+    // ------------------------------------------------------------
+    // PREMIER CLIC
+    // ------------------------------------------------------------
+    if (connectorStartShape == null) {
+      connectorStartShape = clickedShape;
+      selectedShape = clickedShape;
+
+      debugPrint(
+        'Début connecteur : ${clickedShape.id}',
+      );
+
+      return;
+    }
+
+    // ------------------------------------------------------------
+    // DEUXIÈME CLIC
+    // ------------------------------------------------------------
+
+    // Pour l'instant, on interdit de relier une forme à elle-même.
+    if (connectorStartShape!.id == clickedShape.id) {
+      return;
+    }
+
+    connectors.add(
+      DiagramConnector(
+        id: 'connector-${connectors.length + 1}',
+        fromShapeId: connectorStartShape!.id,
+        toShapeId: clickedShape.id,
+      ),
+    );
+
+    debugPrint(
+      'Connecteur : '
+      '${connectorStartShape!.id} -> ${clickedShape.id}',
+    );
+
+    // Le connecteur est terminé.
+    connectorStartShape = null;
+
+    // La deuxième forme devient la sélection courante.
+    selectedShape = clickedShape;
+  }
+
     /// Décalage actuel du canevas.
     ///
     /// Offset contient deux nombres :
@@ -269,8 +392,9 @@ class _GridCanvasState extends State<GridCanvas> {
     ///
     /// null signifie :
     /// mode normal de sélection/déplacement.
-    ToolType? activeTool;
-    
+    //ToolType? activeTool;
+    ToolType activeTool = ToolType.select;
+
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
       //
@@ -381,143 +505,89 @@ class _GridCanvasState extends State<GridCanvas> {
     //},
     
     onTapDown: (details) {
-      // ----------------------------------------------------------
-      // CAS 1 : outil rectangle actif
-      // ----------------------------------------------------------
+      // ------------------------------------------------------------
+      // Gestion du clic selon l'outil actuellement actif.
+      // ------------------------------------------------------------
       //
-      // Le clic ne sert plus à sélectionner.
-      // Il sert à créer une nouvelle forme.
-      if (activeTool != null) {
-        // Le clic reçu est en coordonnées écran.
-        //
-        // Nos formes vivent en coordonnées monde :
-        //
-        // monde = (écran - offset) / scale
-        final Offset worldPosition =
-            (details.localPosition - offset) / scale;
-
-        setState(() {
-          switch (activeTool!) {
-            case ToolType.select:
-              activeTool = null;
-            case ToolType.rectangle:
-              shapes.add(
-                DiagramShape(
-                  id: 'rectangle-${shapes.length + 1}',
-                  type: ShapeType.rectangle,
-                  position: worldPosition,
-                  width: 200,
-                  height: 100,
-                ),
-              );
-
-            case ToolType.circle:
-              shapes.add(
-                DiagramShape(
-                  id: 'circle-${shapes.length + 1}',
-                  type: ShapeType.circle,
-                  position: worldPosition,
-
-                  // width == height :
-                  // notre boîte englobante est carrée,
-                  // donc drawOval() produira un cercle.
-                  width: 120,
-                  height: 120,
-                ),
-              );
-            
-            case ToolType.connector:
-              // Pour un connecteur, la position exacte du clic
-              // nous intéresse moins que la FORME située sous ce clic.
-              //
-              // _shapeAtScreenPosition() fait déjà tout le travail :
-              // - conversion écran -> monde
-              // - hit-testing rectangle/cercle
-              final DiagramShape? clickedShape =
-                  _shapeAtScreenPosition(details.localPosition);
-            
-              // Un clic dans le vide ne fait rien.
-              if (clickedShape == null) {
-                return;
-              }
-            
-              if (connectorStartShape == null) {
-                // ----------------------------------------------------------
-                // PREMIER CLIC
-                // ----------------------------------------------------------
-                //
-                // On mémorise simplement la forme de départ.
-                connectorStartShape = clickedShape;
-            
-                // On la sélectionne aussi visuellement.
-                selectedShape = clickedShape;
-            
-                debugPrint(
-                  'Début connecteur : ${clickedShape.id}',
-                );
-              } else {
-                // ----------------------------------------------------------
-                // DEUXIÈME CLIC
-                // ----------------------------------------------------------
-                //
-                // On possède maintenant :
-                //
-                // connectorStartShape -> forme A
-                // clickedShape        -> forme B
-            
-                // Pour l'instant, on interdit A -> A.
-                if (connectorStartShape!.id == clickedShape.id) {
-                  return;
-                }
-            
-                connectors.add(
-                  DiagramConnector(
-                    id: 'connector-${connectors.length + 1}',
-                    fromShapeId: connectorStartShape!.id,
-                    toShapeId: clickedShape.id,
-                  ),
-                );
-            
-                debugPrint(
-                  'Connecteur : '
-                  '${connectorStartShape!.id} -> ${clickedShape.id}',
-                );
-            
-                // Le connecteur est terminé.
-                connectorStartShape = null;
-            
-                // Et on revient au mode normal.
-                activeTool = null;
-            
-                selectedShape = clickedShape;
-              }
-          }
-
-          // Un outil crée une seule forme.
-          //
-          // Après création, retour automatique
-          // au mode sélection/déplacement.
-          // activeTool = null;
-        });
-
-        return;
-      }
-
-      // ----------------------------------------------------------
-      // CAS 2 : comportement normal de sélection
-      // ----------------------------------------------------------
-      final DiagramShape? shape =
-          _shapeAtScreenPosition(details.localPosition);
-
+      // activeTool n'est plus nullable :
+      //
+      // il vaut TOUJOURS exactement l'un de ces quatre modes :
+      //
+      // - select
+      // - rectangle
+      // - circle
+      // - connector
+      //
+      // Nous n'avons donc plus besoin :
+      //
+      //   if (activeTool != null)
+      //
+      // ni :
+      //
+      //   activeTool!
+      //
       setState(() {
-        selectedShape = shape;
+        switch (activeTool) {
+          // --------------------------------------------------------
+          // OUTIL SÉLECTION
+          // --------------------------------------------------------
+          case ToolType.select:
+            // Recherche la forme située sous le clic.
+            //
+            // La méthode s'occupe déjà :
+            // - de la conversion écran -> monde ;
+            // - du rectangle ;
+            // - du cercle.
+            final DiagramShape? shape =
+                _shapeAtScreenPosition(details.localPosition);
+    
+            // null signifie simplement que l'utilisateur
+            // a cliqué dans le vide.
+            selectedShape = shape;
+    
+            if (shape != null) {
+              debugPrint(
+                'Forme sélectionnée : ${shape.id}',
+              );
+            } else {
+              debugPrint(
+                'Aucune forme sélectionnée',
+              );
+            }
+    
+            break;
+    
+          // --------------------------------------------------------
+          // OUTIL RECTANGLE
+          // --------------------------------------------------------
+          case ToolType.rectangle:
+            _createRectangle(
+              details.localPosition,
+            );
+    
+            break;
+    
+          // --------------------------------------------------------
+          // OUTIL CERCLE
+          // --------------------------------------------------------
+          case ToolType.circle:
+            _createCircle(
+              details.localPosition,
+            );
+    
+            break;
+    
+          // --------------------------------------------------------
+          // OUTIL CONNECTEUR
+          // --------------------------------------------------------
+          case ToolType.connector:
+            _handleConnectorClick(
+              details.localPosition,
+            );
+    
+            break;
+        }
       });
-
-      if (shape != null) {
-        debugPrint('Forme sélectionnée : ${shape.id}');
-      } else {
-        debugPrint('Aucune forme sélectionnée');
-      }
     },
 
     onPanStart: (details) {
@@ -703,10 +773,7 @@ class _GridCanvasState extends State<GridCanvas> {
                                              icon: const Icon(Icons.crop_square),
                                              onPressed: () {
                          setState(() {
-                           activeTool =
-                               activeTool == ToolType.rectangle
-                                   ? null
-                                   : ToolType.rectangle;
+                           activeTool = ToolType.rectangle;
                          });
                        },
                       ),
@@ -724,10 +791,7 @@ class _GridCanvasState extends State<GridCanvas> {
 
                         onPressed: () {
                           setState(() {
-                            activeTool =
-                                activeTool == ToolType.circle
-                                    ? null
-                                    : ToolType.circle;
+                            activeTool = ToolType.circle;
                           });
                         },
                       ),
@@ -746,10 +810,7 @@ class _GridCanvasState extends State<GridCanvas> {
                         onPressed: () {
                           setState(() {
                             // Active ou désactive l'outil.
-                            activeTool =
-                                activeTool == ToolType.connector
-                                    ? null
-                                    : ToolType.connector;
+                            activeTool = ToolType.connector;
 
                             // Si on désactive l'outil en cours de route,
                             // on oublie aussi la première forme choisie.
