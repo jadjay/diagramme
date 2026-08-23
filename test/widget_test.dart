@@ -52,7 +52,7 @@ void main() {
     },
 
   );
-testWidgets(
+  testWidgets(
   'Rectangle tool creates a rectangle',
   (WidgetTester tester) async {
     // ------------------------------------------------------------
@@ -110,7 +110,7 @@ testWidgets(
   },
 );
 
-testWidgets(
+  testWidgets(
   'Circle tool creates a circle',
   (WidgetTester tester) async {
     await tester.pumpWidget(const DiagrammeApp());
@@ -140,7 +140,7 @@ testWidgets(
     );
   },
 );
-testWidgets(
+  testWidgets(
   'Selection tool is available',
   (WidgetTester tester) async {
     await tester.pumpWidget(const DiagrammeApp());
@@ -152,7 +152,7 @@ testWidgets(
   },
 );
 
-testWidgets(
+  testWidgets(
   'Connector tool can connect two shapes',
   (WidgetTester tester) async {
     await tester.pumpWidget(const DiagrammeApp());
@@ -222,4 +222,76 @@ testWidgets(
     );
   },
 );
+
+  testWidgets(
+  'Pinch gesture changes canvas zoom',
+  (WidgetTester tester) async {
+    // ------------------------------------------------------------
+    // ARRANGE
+    // ------------------------------------------------------------
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // Au démarrage, le zoom doit être à 100 %.
+    expect(
+      find.text('100 %'),
+      findsOneWidget,
+    );
+
+    // ------------------------------------------------------------
+    // ACT
+    // ------------------------------------------------------------
+    //
+    // On crée deux pointeurs tactiles.
+    //
+    // Ils commencent assez proches l'un de l'autre...
+    final firstFinger = await tester.startGesture(
+      const Offset(350, 300),
+      pointer: 1,
+    );
+
+    final secondFinger = await tester.startGesture(
+      const Offset(450, 300),
+      pointer: 2,
+    );
+
+    await tester.pump();
+
+    // ...puis on les éloigne.
+    //
+    // C'est l'équivalent d'un pinch-out :
+    // donc un zoom avant.
+    await firstFinger.moveTo(
+      const Offset(300, 300),
+    );
+
+    await secondFinger.moveTo(
+      const Offset(500, 300),
+    );
+
+    await tester.pump();
+
+    // On relâche les deux doigts.
+    await firstFinger.up();
+    await secondFinger.up();
+
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // ASSERT
+    // ------------------------------------------------------------
+    //
+    // Le zoom ne doit plus être exactement à 100 %.
+    expect(
+      find.text('100 %'),
+      findsNothing,
+    );
+
+    // Et aucune exception Flutter ne doit avoir eu lieu.
+    expect(
+      tester.takeException(),
+      isNull,
+    );
+  },
+);
+
 }

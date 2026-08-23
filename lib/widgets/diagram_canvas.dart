@@ -6,7 +6,7 @@ import 'package:diagramme/models/diagram_connector.dart';
 import 'package:diagramme/painters/diagram_painter.dart';
 import 'package:diagramme/widgets/diagram_toolbar.dart';
 import 'package:diagramme/widgets/zoom_indicator.dart';
-
+import 'package:diagramme/models/canvas_transform.dart';
 /// Notre zone de dessin.
 ///
 /// StatefulWidget = widget qui possède un état mutable.
@@ -43,9 +43,13 @@ class _GridCanvasState extends State<GridCanvas> {
   /// Toute la logique spécifique à la création d'un rectangle
   /// est maintenant isolée dans cette méthode.
   void _createRectangle(Offset screenPosition) {
-    final Offset worldPosition =
-        (screenPosition - offset) / scale;
+    final transform = CanvasTransform(
+      offset: offset,
+      scale: scale,
+    );
 
+    final Offset worldPosition =
+        transform.screenToWorld(screenPosition);
     shapes.add(
       DiagramShape(
         id: 'rectangle-${shapes.length + 1}',
@@ -72,8 +76,13 @@ class _GridCanvasState extends State<GridCanvas> {
   /// Comme width == height, GridPainter dessinera un vrai cercle
   /// avec drawOval().
   void _createCircle(Offset screenPosition) {
+    final transform = CanvasTransform(
+      offset: offset,
+      scale: scale,
+    );
+    
     final Offset worldPosition =
-        (screenPosition - offset) / scale;
+        transform.screenToWorld(screenPosition);
   
     shapes.add(
       DiagramShape(
@@ -249,9 +258,15 @@ class _GridCanvasState extends State<GridCanvas> {
     ///
     ///   monde = (écran - offset) / scale
     DiagramShape? _shapeAtScreenPosition(Offset screenPosition) {
-      final Offset worldPosition =
-          (screenPosition - offset) / scale;
+      
+      final transform = CanvasTransform(
+        offset: offset,
+        scale: scale,
+      );
 
+      final Offset worldPosition =
+          transform.screenToWorld(screenPosition);
+      
       // On parcourt les formes à l'envers.
       //
       // Pourquoi ?
@@ -366,6 +381,29 @@ class _GridCanvasState extends State<GridCanvas> {
     /// mode normal de sélection/déplacement.
     //ToolType? activeTool;
     ToolType activeTool = ToolType.select;
+
+    /// État mémorisé au début d'un geste tactile.
+    ///
+    /// Un geste "scale" Flutter peut représenter :
+    ///
+    /// - un drag avec un seul doigt ;
+    /// - un pinch avec deux doigts ;
+    /// - un pinch + déplacement simultané.
+    double _gestureStartScale = 1.0;
+
+    Offset _gestureStartOffset = Offset.zero;
+
+    /// Point focal au début du geste.
+    ///
+    /// Avec un doigt : position du doigt.
+    /// Avec deux doigts : point situé entre les deux doigts.
+    Offset _gestureStartFocalPoint = Offset.zero;
+
+    /// Point focal de la frame précédente.
+    ///
+    /// Il nous permet de calculer le déplacement d'un doigt
+    /// lorsque l'utilisateur déplace une forme.
+    Offset _lastGestureFocalPoint = Offset.zero;
 
     void _handleMouseWheel(PointerScrollEvent event) {
       // Position actuelle de la souris dans la fenêtre.
@@ -562,80 +600,144 @@ class _GridCanvasState extends State<GridCanvas> {
       });
     },
 
-    onPanStart: (details) {
-      // Au moment précis où le drag commence,
-      // on regarde ce qui se trouve sous la souris.
+    onScaleStart: (details) {
+      // ------------------------------------------------------------
+      // Début d'un geste
+      // ------------------------------------------------------------
+      //
+      // GestureDetector utilise "scale" aussi bien pour :
+      //
+      // - un drag à un doigt ;
+      // - un pinch à deux doigts.
+      //
+      // On mémorise donc l'état actuel du canevas afin que tous
+      // les calculs suivants partent d'une référence stable.
+
+      _gestureStartScale = scale;
+      _gestureStartOffset = offset;
+
+      _gestureStartFocalPoint =
+          details.localFocalPoint;
+
+      _lastGestureFocalPoint =
+          details.localFocalPoint;
+
+      // On regarde également si le geste commence sur une forme.
+      //
+      // Si oui, un déplacement à UN doigt servira à déplacer
+      // cette forme.
       final DiagramShape? shape =
-          _shapeAtScreenPosition(details.localPosition);
+          _shapeAtScreenPosition(
+            details.localFocalPoint,
+          );
 
       setState(() {
-        // Si une forme est sous la souris,
-        // elle devient également la forme sélectionnée.
-        selectedShape = shape;
-
-        // On mémorise ce choix pour TOUTE la durée du drag.
-        //
-        // shape != null -> on déplacera cette forme.
-        // shape == null -> on déplacera le canevas.
         draggedShape = shape;
+
+        if (shape != null) {
+          selectedShape = shape;
+        }
       });
     },
-      /// Cette fonction est appelée pendant un clic-glisser.
-      ///
-      /// details.delta représente le déplacement DEPUIS
-      /// l'événement précédent.
-      ///
-      /// Exemple :
-      /// la souris bouge de 5 px vers la droite :
-      /// details.delta.dx == 5
-      onPanUpdate: (details) {
-        setState(() {
-          if (draggedShape != null) {
-            // --------------------------------------------------------
-            // CAS 1 : déplacement d'une forme
-            // --------------------------------------------------------
-            //
-            // details.delta est exprimé en pixels ÉCRAN.
-            //
-            // Mais la position de notre forme est exprimée
-            // en coordonnées MONDE.
-            //
-            // Il faut donc tenir compte du zoom.
-            //
-            // À 100 % :
-            //   10 pixels écran = 10 unités monde
-            //
-            // À 200 % :
-            //   10 pixels écran = 5 unités monde
-            //
-            // À 50 % :
-            //   10 pixels écran = 20 unités monde
-            //
-            // D'où :
-            //
-            //   déplacement monde = déplacement écran / scale
-            final Offset worldDelta =
-                details.delta / scale;
+
+    onScaleUpdate: (details) {
+      setState(() {
+        // ----------------------------------------------------------
+        // CAS 1 : deux doigts ou plus
+        // ----------------------------------------------------------
+        //
+        // Dans ce cas, on considère toujours que l'utilisateur
+        // manipule le CANEVAS et non une forme.
+        //
+        // C'est notre pinch-to-zoom Android.
+        if (details.pointerCount >= 2) {
+          // Nouveau niveau de zoom.
+          //
+          // details.scale est relatif au début du geste :
+          //
+          // 1.0 = taille inchangée
+          // 1.2 = +20 %
+          // 0.8 = -20 %
+          final double newScale =
+              (_gestureStartScale * details.scale)
+                  .clamp(0.1, 5.0);
+
+          // --------------------------------------------------------
+          // Trouver quel point DU MONDE se trouvait sous
+          // le centre du geste au début du pinch.
+          // --------------------------------------------------------
+          //
+          // monde = (écran - offset) / scale
+          final Offset worldPointUnderGesture =
+              (_gestureStartFocalPoint -
+                      _gestureStartOffset) /
+                  _gestureStartScale;
+
+          // --------------------------------------------------------
+          // Recalcul de l'offset
+          // --------------------------------------------------------
+          //
+          // On veut que ce même point du monde reste sous
+          // les doigts pendant le zoom.
+          //
+          // écran = monde * scale + offset
+          //
+          // donc :
+          //
+          // offset = écran - monde * scale
+          offset =
+              details.localFocalPoint -
+              worldPointUnderGesture * newScale;
+
+          scale = newScale;
+
+          // Pendant un pinch, on ne déplace jamais une forme.
+          draggedShape = null;
+        }
+
+        // ----------------------------------------------------------
+        // CAS 2 : un seul doigt sur une forme
+        // ----------------------------------------------------------
+        else if (draggedShape != null) {
+          // Calcul du déplacement depuis la dernière frame.
+          final Offset screenDelta =
+              details.localFocalPoint -
+              _lastGestureFocalPoint;
+
+          // La forme vit dans le monde.
+          //
+          // À 200 % :
+          // 10 pixels écran = 5 unités monde.
+          final Offset worldDelta =
+              screenDelta / scale;
+
+          draggedShape!.position += worldDelta;
+        }
+
+        // ----------------------------------------------------------
+        // CAS 3 : un seul doigt dans le vide
+        // ----------------------------------------------------------
+        else {
+          // Un doigt sur le fond = déplacement du canevas.
+          final Offset screenDelta =
+              details.localFocalPoint -
+              _lastGestureFocalPoint;
+
+          offset += screenDelta;
+        }
+
+        // Le point courant devient la référence
+        // pour la prochaine frame.
+        _lastGestureFocalPoint =
+            details.localFocalPoint;
+      });
+    },
+
+    onScaleEnd: (details) {
+      // Le geste est terminé.
+      draggedShape = null;
+    },
       
-            draggedShape!.position += worldDelta;
-          } else {
-            // --------------------------------------------------------
-            // CAS 2 : déplacement du canevas
-            // --------------------------------------------------------
-            //
-            // Ici rien ne change par rapport à avant.
-            //
-            // offset est justement exprimé dans les coordonnées
-            // de l'écran, donc aucun / scale n'est nécessaire.
-            offset += details.delta;
-          }
-        });
-      },
-      onPanEnd: (details) {
-        // Le bouton/doigt est relâché :
-        // plus aucune forme n'est en cours de déplacement.
-        draggedShape = null;
-      },
       /// SizedBox.expand force son enfant
       /// à prendre toute la place disponible.
       child: SizedBox.expand(
