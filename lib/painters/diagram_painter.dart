@@ -319,6 +319,75 @@ class DiagramPainter extends CustomPainter {
     }
 
     // --------------------------------------------------------------
+    // Dessin du texte de la forme
+    // --------------------------------------------------------------
+    //
+    // Le texte est stocké directement dans DiagramShape.
+    //
+    // S'il est vide, on ne dessine rien.
+    if (shape.text.isNotEmpty) {
+      // TextPainter est l'outil Flutter utilisé pour mesurer
+      // et dessiner du texte directement sur un Canvas.
+      //
+      // C'est l'équivalent "bas niveau" d'un widget Text,
+      // mais utilisable dans CustomPainter.
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: shape.text,
+          style: TextStyle(
+            color: Colors.black,
+    
+            // On fait varier légèrement la taille avec le zoom.
+            //
+            // Pour l'instant c'est simple :
+            // 14 unités monde -> taille écran.
+            fontSize: 14 * scale,
+          ),
+        ),
+    
+        // Obligatoire pour que Flutter sache
+        // dans quel sens disposer le texte.
+        textDirection: TextDirection.ltr,
+    
+        // Centre les lignes si le texte passe sur plusieurs lignes.
+        textAlign: TextAlign.center,
+      );
+    
+      // On limite la largeur disponible à l'intérieur de la forme.
+      //
+      // Les 16 pixels servent de petite marge interne :
+      //
+      // |  texte texte  |
+      //
+      // au lieu de :
+      //
+      // |texte texte    |
+      final double maxTextWidth =
+          (screenWidth - 16).clamp(1.0, double.infinity);
+    
+      // layout() calcule la taille réellement nécessaire au texte.
+      //
+      // C'est ici que Flutter gère notamment
+      // le retour automatique à la ligne.
+      textPainter.layout(
+        maxWidth: maxTextWidth,
+      );
+    
+      // Position du texte pour qu'il soit centré
+      // horizontalement et verticalement dans la forme.
+      final Offset textPosition = Offset(
+        rect.center.dx - textPainter.width / 2,
+        rect.center.dy - textPainter.height / 2,
+      );
+    
+      // Dessin effectif sur le canvas.
+      textPainter.paint(
+        canvas,
+        textPosition,
+      );
+    }
+
+    // --------------------------------------------------------------
     // Indication visuelle de sélection
     // --------------------------------------------------------------
     //

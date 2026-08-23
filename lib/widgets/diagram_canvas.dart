@@ -180,6 +180,22 @@ class _GridCanvasState extends State<GridCanvas> {
     /// Le canevas démarre maintenant réellement vide.
     /// Les formes seront ajoutées par l'utilisateur.
     final List<DiagramShape> shapes = [];
+    // final List<DiagramShape> shapes = [
+    //   DiagramShape(
+    //     id: 'circle-1',
+    //     type: ShapeType.circle,
+    // 
+    //     // Position du coin supérieur gauche
+    //     // de sa boîte englobante.
+    //     position: const Offset(400, 200),
+    // 
+    //     // width == height => cercle.
+    //     width: 120,
+    //     height: 120,
+    //     text: 'Hello',
+    // 
+    //   ),
+    // ];
     // TEST final List<DiagramShape> shapes = [
     // TEST   DiagramShape(
     // TEST     id: 'circle-1',
