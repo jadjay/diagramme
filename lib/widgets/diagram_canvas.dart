@@ -124,9 +124,9 @@ class _GridCanvasState extends State<GridCanvas> {
       connectorStartShape = clickedShape;
       selectedShape = clickedShape;
 
-      debugPrint(
-        'Début connecteur : ${clickedShape.id}',
-      );
+      // debugPrint(
+      //   'Début connecteur : ${clickedShape.id}',
+      // );
 
       return;
     }
@@ -148,10 +148,10 @@ class _GridCanvasState extends State<GridCanvas> {
       ),
     );
 
-    debugPrint(
-      'Connecteur : '
-      '${connectorStartShape!.id} -> ${clickedShape.id}',
-    );
+    // debugPrint(
+    //   'Connecteur : '
+    //   '${connectorStartShape!.id} -> ${clickedShape.id}',
+    // );
 
     // Le connecteur est terminé.
     connectorStartShape = null;

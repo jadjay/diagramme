@@ -57,6 +57,7 @@ enum ToolType {
   connector,
 }
 ToolType activeTool = ToolType.select;
+
 class DiagramShape {
   DiagramShape({
     required this.id,
@@ -64,6 +65,7 @@ class DiagramShape {
     required this.position,
     required this.width,
     required this.height,
+    this.text = '',
   });
 
   /// Identifiant unique de la forme.
@@ -88,4 +90,9 @@ class DiagramShape {
 
   /// Hauteur dans les unités du monde.
   double height;
+
+  /// Texte affiché à l'intérieur de la forme.
+  ///
+  /// Chaîne vide = aucun texte.
+  String text;
 }
