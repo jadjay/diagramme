@@ -3,10 +3,12 @@ import 'package:flutter/gestures.dart';
 
 import 'package:diagramme/models/diagram_shape.dart';
 import 'package:diagramme/models/diagram_connector.dart';
+import 'package:diagramme/models/canvas_transform.dart';
+
 import 'package:diagramme/painters/diagram_painter.dart';
+
 import 'package:diagramme/widgets/diagram_toolbar.dart';
 import 'package:diagramme/widgets/zoom_indicator.dart';
-import 'package:diagramme/models/canvas_transform.dart';
 
 /// Notre zone de dessin.
 ///
@@ -14,9 +16,6 @@ import 'package:diagramme/models/canvas_transform.dart';
 ///
 /// Ici, l'état à mémoriser est la position de la grille.
 /// Quand l'utilisateur déplace la souris, cette position change.
-///
-/// C'est précisément pour ça qu'on ne peut plus utiliser
-/// un StatelessWidget comme avant.
 class GridCanvas extends StatefulWidget {
   const GridCanvas({super.key});
 

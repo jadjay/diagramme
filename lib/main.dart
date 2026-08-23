@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
-// import 'package:flutter/gestures.dart';
-// import 'package:diagramme/models/diagram_shape.dart';
-// import 'package:diagramme/models/diagram_connector.dart';
-// import 'package:diagramme/painters/diagram_painter.dart';
-// import 'package:diagramme/widgets/diagram_toolbar.dart';
-// import 'package:diagramme/widgets/zoom_indicator.dart';
 import 'package:diagramme/widgets/diagram_canvas.dart';
 
 /// Point d'entrée de l'application.
-///
-/// C'est l'équivalent du :
-///     if __name__ == "__main__":
-/// en Python, conceptuellement.
+
 void main() {
   runApp(const DiagrammeApp());
 }
