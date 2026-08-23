@@ -40,22 +40,16 @@ import 'package:flutter/material.dart';
 /// - diamond
 /// - ellipse
 /// - etc.
-enum ShapeType {
-  rectangle,
-  circle,
-}
+enum ShapeType { rectangle, circle }
+
 /// Outils disponibles dans la barre d'outils.
 ///
 /// select n'est pas encore utilisé explicitement :
 /// pour l'instant "aucun outil actif" joue ce rôle.
 ///
 /// Mais on prépare une structure propre pour la suite.
-enum ToolType {
-  select,
-  rectangle,
-  circle,
-  connector,
-}
+enum ToolType { select, rectangle, circle, connector }
+
 ToolType activeTool = ToolType.select;
 
 class DiagramShape {
@@ -78,7 +72,7 @@ class DiagramShape {
 
   /// Type géométrique de la forme.
   final ShapeType type;
-  
+
   /// Position de la forme DANS LE MONDE.
   ///
   /// Pour un rectangle, on considère que cette position

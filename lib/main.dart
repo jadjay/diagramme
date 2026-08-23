@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 // import 'package:diagramme/widgets/diagram_toolbar.dart';
 // import 'package:diagramme/widgets/zoom_indicator.dart';
 import 'package:diagramme/widgets/diagram_canvas.dart';
+
 /// Point d'entrée de l'application.
 ///
 /// C'est l'équivalent du :
@@ -32,11 +33,7 @@ class DiagrammeApp extends StatelessWidget {
       // Scaffold fournit une structure de page Flutter classique.
       // Pour l'instant on n'utilise ni AppBar ni boutons :
       // juste notre zone de dessin.
-      home: Scaffold(
-        body: GridCanvas(),
-      ),
+      home: Scaffold(body: GridCanvas()),
     );
   }
 }
-
-

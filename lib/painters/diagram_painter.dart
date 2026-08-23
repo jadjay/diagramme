@@ -6,7 +6,7 @@ class DiagramPainter extends CustomPainter {
   /// Constructeur.
   ///
   /// "required" oblige l'appelant à fournir un offset.
-   DiagramPainter({
+  DiagramPainter({
     required this.offset,
     required this.scale,
     required this.shapes,
@@ -24,11 +24,12 @@ class DiagramPainter extends CustomPainter {
   final List<DiagramShape> shapes;
 
   final List<DiagramConnector> connectors;
-  
+
   /// Forme actuellement sélectionnée.
   ///
   /// null = aucune sélection.
   final DiagramShape? selectedShape;
+
   /// Taille d'une case de la grille.
   ///
   /// Pour l'instant :
@@ -94,11 +95,12 @@ class DiagramPainter extends CustomPainter {
     // À 100 % -> 40 pixels
     // À 200 % -> 80 pixels
     final double scaledGridSize = gridSize * scale;
-    
+
     // On cherche où doit commencer la première ligne visible,
     // mais cette fois avec la taille tenant compte du zoom.
     final double startX = offset.dx % scaledGridSize;
     final double startY = offset.dy % scaledGridSize;
+
     /// Dessine les lignes verticales.
     ///
     /// On part de startX et on avance d'une case à chaque fois.
@@ -187,11 +189,9 @@ class DiagramPainter extends CustomPainter {
     for (final connector in connectors) {
       // Le connecteur connaît seulement les IDs.
       // On retrouve donc les deux formes.
-      final DiagramShape? fromShape =
-          _shapeById(connector.fromShapeId);
+      final DiagramShape? fromShape = _shapeById(connector.fromShapeId);
 
-      final DiagramShape? toShape =
-          _shapeById(connector.toShapeId);
+      final DiagramShape? toShape = _shapeById(connector.toShapeId);
 
       // Un connecteur invalide ne doit jamais faire planter
       // tout le rendu.
@@ -215,21 +215,15 @@ class DiagramPainter extends CustomPainter {
       );
 
       // Conversion monde -> écran.
-      final Offset fromScreen =
-          fromCenter * scale + offset;
+      final Offset fromScreen = fromCenter * scale + offset;
 
-      final Offset toScreen =
-          toCenter * scale + offset;
+      final Offset toScreen = toCenter * scale + offset;
 
       final connectorPaint = Paint()
         ..color = Colors.black
         ..strokeWidth = 2.0;
 
-      canvas.drawLine(
-        fromScreen,
-        toScreen,
-        connectorPaint,
-      );
+      canvas.drawLine(fromScreen, toScreen, connectorPaint);
     }
 
     // ------------------------------------------------------------------
@@ -249,11 +243,10 @@ class DiagramPainter extends CustomPainter {
     //
     //   taille écran = taille monde * scale
     //
-    
+
     for (final shape in shapes) {
       // Conversion de la position monde -> écran.
-      final Offset screenPosition =
-          shape.position * scale + offset;
+      final Offset screenPosition = shape.position * scale + offset;
 
       // Conversion des dimensions monde -> écran.
       final double screenWidth = shape.width * scale;
@@ -295,134 +288,128 @@ class DiagramPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
 
-    // --------------------------------------------------------------
-    // Dessin selon le type de forme
-    // --------------------------------------------------------------
+      // --------------------------------------------------------------
+      // Dessin selon le type de forme
+      // --------------------------------------------------------------
 
-    switch (shape.type) {
-      case ShapeType.rectangle:
-        // Pour un rectangle, notre "rect" est directement
-        // la géométrie à dessiner.
-        canvas.drawRect(rect, fillPaint);
-        canvas.drawRect(rect, borderPaint);
+      switch (shape.type) {
+        case ShapeType.rectangle:
+          // Pour un rectangle, notre "rect" est directement
+          // la géométrie à dessiner.
+          canvas.drawRect(rect, fillPaint);
+          canvas.drawRect(rect, borderPaint);
 
-      case ShapeType.circle:
-        // Pour un cercle, nous utilisons le même Rect comme
-        // boîte englobante.
-        //
-        // drawOval() dessine une ellipse qui remplit exactement
-        // cette boîte.
-        //
-        // Si width == height, nous obtenons donc un vrai cercle.
-        canvas.drawOval(rect, fillPaint);
-        canvas.drawOval(rect, borderPaint);
-    }
+        case ShapeType.circle:
+          // Pour un cercle, nous utilisons le même Rect comme
+          // boîte englobante.
+          //
+          // drawOval() dessine une ellipse qui remplit exactement
+          // cette boîte.
+          //
+          // Si width == height, nous obtenons donc un vrai cercle.
+          canvas.drawOval(rect, fillPaint);
+          canvas.drawOval(rect, borderPaint);
+      }
 
-    // --------------------------------------------------------------
-    // Dessin du texte de la forme
-    // --------------------------------------------------------------
-    //
-    // Le texte est stocké directement dans DiagramShape.
-    //
-    // S'il est vide, on ne dessine rien.
-    if (shape.text.isNotEmpty) {
-      // TextPainter est l'outil Flutter utilisé pour mesurer
-      // et dessiner du texte directement sur un Canvas.
+      // --------------------------------------------------------------
+      // Dessin du texte de la forme
+      // --------------------------------------------------------------
       //
-      // C'est l'équivalent "bas niveau" d'un widget Text,
-      // mais utilisable dans CustomPainter.
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: shape.text,
-          style: TextStyle(
-            color: Colors.black,
-    
-            // On fait varier légèrement la taille avec le zoom.
-            //
-            // Pour l'instant c'est simple :
-            // 14 unités monde -> taille écran.
-            fontSize: 14 * scale,
+      // Le texte est stocké directement dans DiagramShape.
+      //
+      // S'il est vide, on ne dessine rien.
+      if (shape.text.isNotEmpty) {
+        // TextPainter est l'outil Flutter utilisé pour mesurer
+        // et dessiner du texte directement sur un Canvas.
+        //
+        // C'est l'équivalent "bas niveau" d'un widget Text,
+        // mais utilisable dans CustomPainter.
+        final textPainter = TextPainter(
+          text: TextSpan(
+            text: shape.text,
+            style: TextStyle(
+              color: Colors.black,
+
+              // On fait varier légèrement la taille avec le zoom.
+              //
+              // Pour l'instant c'est simple :
+              // 14 unités monde -> taille écran.
+              fontSize: 14 * scale,
+            ),
           ),
-        ),
-    
-        // Obligatoire pour que Flutter sache
-        // dans quel sens disposer le texte.
-        textDirection: TextDirection.ltr,
-    
-        // Centre les lignes si le texte passe sur plusieurs lignes.
-        textAlign: TextAlign.center,
-      );
-    
-      // On limite la largeur disponible à l'intérieur de la forme.
-      //
-      // Les 16 pixels servent de petite marge interne :
-      //
-      // |  texte texte  |
-      //
-      // au lieu de :
-      //
-      // |texte texte    |
-      final double maxTextWidth =
-          (screenWidth - 16).clamp(1.0, double.infinity);
-    
-      // layout() calcule la taille réellement nécessaire au texte.
-      //
-      // C'est ici que Flutter gère notamment
-      // le retour automatique à la ligne.
-      textPainter.layout(
-        maxWidth: maxTextWidth,
-      );
-    
-      // Position du texte pour qu'il soit centré
-      // horizontalement et verticalement dans la forme.
-      final Offset textPosition = Offset(
-        rect.center.dx - textPainter.width / 2,
-        rect.center.dy - textPainter.height / 2,
-      );
-    
-      // Dessin effectif sur le canvas.
-      textPainter.paint(
-        canvas,
-        textPosition,
-      );
-    }
 
-    // --------------------------------------------------------------
-    // Indication visuelle de sélection
-    // --------------------------------------------------------------
-    //
-    // On compare les identifiants plutôt que les objets eux-mêmes.
-    //
-    // Si cette forme est celle actuellement sélectionnée,
-    // on dessine un deuxième contour autour d'elle.
-    if (selectedShape?.id == shape.id) {
-      final selectionPaint = Paint()
-        ..color = Colors.blue
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.0;
-    
-      // inflate(4) crée un rectangle légèrement plus grand :
+          // Obligatoire pour que Flutter sache
+          // dans quel sens disposer le texte.
+          textDirection: TextDirection.ltr,
+
+          // Centre les lignes si le texte passe sur plusieurs lignes.
+          textAlign: TextAlign.center,
+        );
+
+        // On limite la largeur disponible à l'intérieur de la forme.
+        //
+        // Les 16 pixels servent de petite marge interne :
+        //
+        // |  texte texte  |
+        //
+        // au lieu de :
+        //
+        // |texte texte    |
+        final double maxTextWidth = (screenWidth - 16).clamp(
+          1.0,
+          double.infinity,
+        );
+
+        // layout() calcule la taille réellement nécessaire au texte.
+        //
+        // C'est ici que Flutter gère notamment
+        // le retour automatique à la ligne.
+        textPainter.layout(maxWidth: maxTextWidth);
+
+        // Position du texte pour qu'il soit centré
+        // horizontalement et verticalement dans la forme.
+        final Offset textPosition = Offset(
+          rect.center.dx - textPainter.width / 2,
+          rect.center.dy - textPainter.height / 2,
+        );
+
+        // Dessin effectif sur le canvas.
+        textPainter.paint(canvas, textPosition);
+      }
+
+      // --------------------------------------------------------------
+      // Indication visuelle de sélection
+      // --------------------------------------------------------------
       //
-      // rectangle normal :
-      // ┌─────────────┐
-      // │             │
-      // └─────────────┘
+      // On compare les identifiants plutôt que les objets eux-mêmes.
       //
-      // sélection :
-      // ┌ - - - - - - - ┐
-      //   ┌─────────────┐
-      //   │             │
-      //   └─────────────┘
-      // └ - - - - - - - ┘
-      //
-      // Ici on laisse 4 pixels autour de la forme.
-      final Rect selectionRect = rect.inflate(4);
-    
-      canvas.drawRect(
-        selectionRect,
-        selectionPaint,
-      );
-    }
+      // Si cette forme est celle actuellement sélectionnée,
+      // on dessine un deuxième contour autour d'elle.
+      if (selectedShape?.id == shape.id) {
+        final selectionPaint = Paint()
+          ..color = Colors.blue
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.0;
+
+        // inflate(4) crée un rectangle légèrement plus grand :
+        //
+        // rectangle normal :
+        // ┌─────────────┐
+        // │             │
+        // └─────────────┘
+        //
+        // sélection :
+        // ┌ - - - - - - - ┐
+        //   ┌─────────────┐
+        //   │             │
+        //   └─────────────┘
+        // └ - - - - - - - ┘
+        //
+        // Ici on laisse 4 pixels autour de la forme.
+        final Rect selectionRect = rect.inflate(4);
+
+        canvas.drawRect(selectionRect, selectionPaint);
+      }
     }
   }
 
