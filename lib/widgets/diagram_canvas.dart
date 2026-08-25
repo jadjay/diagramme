@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 
 import 'package:diagramme/models/diagram_shape.dart';
 import 'package:diagramme/models/diagram_connector.dart';
@@ -31,6 +32,7 @@ class _GridCanvasState extends State<GridCanvas> {
   @override
   void dispose() {
     _textController.dispose();
+    _canvasFocusNode.dispose();
     super.dispose();
   }
 
@@ -51,9 +53,12 @@ class _GridCanvasState extends State<GridCanvas> {
     final transform = CanvasTransform(offset: offset, scale: scale);
 
     final Offset worldPosition = transform.screenToWorld(screenPosition);
+
+    final String id = 'shape-${_nextShapeId++}';
+
     shapes.add(
       DiagramShape(
-        id: 'rectangle-${shapes.length + 1}',
+        id: id,
         type: ShapeType.rectangle,
         position: worldPosition,
         width: 200,
@@ -79,10 +84,11 @@ class _GridCanvasState extends State<GridCanvas> {
     final transform = CanvasTransform(offset: offset, scale: scale);
 
     final Offset worldPosition = transform.screenToWorld(screenPosition);
+    final String id = 'shape-${_nextShapeId++}';
 
     shapes.add(
       DiagramShape(
-        id: 'circle-${shapes.length + 1}',
+        id: id,
         type: ShapeType.circle,
         position: worldPosition,
         width: 120,
@@ -154,6 +160,8 @@ class _GridCanvasState extends State<GridCanvas> {
     // La deuxième forme devient la sélection courante.
     selectedShape = clickedShape;
   }
+
+  int _nextShapeId = 1;
 
   /// Décalage actuel du canevas.
   ///
@@ -262,6 +270,76 @@ class _GridCanvasState extends State<GridCanvas> {
   DiagramShape? editingShape;
 
   final TextEditingController _textController = TextEditingController();
+
+  final FocusNode _canvasFocusNode = FocusNode();
+
+  /// Supprime la forme actuellement sélectionnée.
+  ///
+  /// Cette suppression doit aussi nettoyer les connecteurs
+  /// qui référencent cette forme.
+  ///
+  /// Exemple :
+  ///
+  ///   A -------- B
+  ///
+  /// Si B est supprimé, le connecteur A -> B doit disparaître aussi.
+  ///
+  /// Si aucune forme n'est sélectionnée, la méthode ne fait rien.
+  void _deleteSelectedShape() {
+    // On copie la référence actuelle dans une variable locale.
+    //
+    // Cela évite de manipuler selectedShape plusieurs fois
+    // alors qu'on va justement le remettre à null ensuite.
+    final DiagramShape? shape = selectedShape;
+
+    // Pas de sélection = rien à supprimer.
+    if (shape == null) {
+      return;
+    }
+
+    // ------------------------------------------------------------
+    // 1. Supprimer les connecteurs liés à cette forme
+    // ------------------------------------------------------------
+    //
+    // Un connecteur doit disparaître si la forme supprimée est :
+    //
+    // - son point de départ ;
+    // - OU son point d'arrivée.
+    connectors.removeWhere(
+      (connector) =>
+          connector.fromShapeId == shape.id || connector.toShapeId == shape.id,
+    );
+
+    // ------------------------------------------------------------
+    // 2. Supprimer la forme
+    // ------------------------------------------------------------
+    shapes.removeWhere((candidate) => candidate.id == shape.id);
+
+    // ------------------------------------------------------------
+    // 3. Nettoyer l'état temporaire
+    // ------------------------------------------------------------
+
+    // La forme n'existe plus : elle ne peut plus être sélectionnée.
+    selectedShape = null;
+
+    // Si elle était en cours d'édition, on ferme l'éditeur.
+    if (editingShape?.id == shape.id) {
+      editingShape = null;
+      _textController.clear();
+    }
+
+    // Si elle était la première extrémité d'un connecteur
+    // en cours de création, on abandonne ce connecteur.
+    if (connectorStartShape?.id == shape.id) {
+      connectorStartShape = null;
+    }
+
+    // Par sécurité : aucune forme supprimée ne doit rester
+    // considérée comme "en cours de déplacement".
+    if (draggedShape?.id == shape.id) {
+      draggedShape = null;
+    }
+  }
 
   /// Recherche la forme située sous un point de l'écran.
   ///
@@ -500,296 +578,320 @@ class _GridCanvasState extends State<GridCanvas> {
               _handleMouseWheel(event);
             }
           },
+          child: KeyboardListener(
+            focusNode: _canvasFocusNode,
+            autofocus: true,
 
-          // Notre GestureDetector reste présent à l'intérieur.
-          //
-          // Il continue de gérer le clic-glisser exactement comme avant.
-          child: GestureDetector(
-            /// "opaque" signifie que toute la surface du widget
-            /// capture les interactions, même si elle est visuellement vide.
-            behavior: HitTestBehavior.opaque,
-
-            //onTapDown: (details) {
-            //
-            //  // details.localPosition = position du clic dans le widget,
-            //  // donc dans les coordonnées de l'écran.
-            //  final DiagramShape? shape =
-            //      _shapeAtScreenPosition(details.localPosition);
-            //
-            //  setState(() {
-            //    selectedShape = shape;
-            //  });
-            //
-            //  if (shape != null) {
-            //    debugPrint('Forme sélectionnée : ${shape.id}');
-            //  } else {
-            //    debugPrint('Aucune forme sélectionnée');
-            //  }
-            //},
-            onDoubleTapDown: (details) {
-              // ------------------------------------------------------------
-              // Double clic / double tap
-              // ------------------------------------------------------------
+            onKeyEvent: (event) {
+              // Pendant l'édition de texte, le clavier appartient
+              // au TextField.
               //
-              // On ne veut éditer du texte que lorsqu'on utilise
-              // l'outil Sélection.
-              if (activeTool != ToolType.select) {
+              // Backspace doit donc supprimer une lettre,
+              // pas la forme entière.
+              if (editingShape != null) {
                 return;
               }
 
-              // Recherche la forme située sous le double clic/tap.
-              final DiagramShape? shape = _shapeAtScreenPosition(
-                details.localPosition,
-              );
-
-              // Double clic dans le vide :
-              // aucune édition.
-              if (shape == null) {
+              // On ne réagit qu'à l'appui initial.
+              if (event is! KeyDownEvent) {
                 return;
               }
 
-              _textController.text = shape.text;
+              if (event.logicalKey == LogicalKeyboardKey.delete ||
+                  event.logicalKey == LogicalKeyboardKey.backspace) {
+                setState(() {
+                  _deleteSelectedShape();
+                });
+              }
+            }, // Notre GestureDetector reste présent à l'intérieur.
+            //
+            // Il continue de gérer le clic-glisser exactement comme avant.
+            child: GestureDetector(
+              /// "opaque" signifie que toute la surface du widget
+              /// capture les interactions, même si elle est visuellement vide.
+              behavior: HitTestBehavior.opaque,
 
-              setState(() {
-                // On sélectionne également la forme.
-                selectedShape = shape;
-
-                // Et on mémorise qu'elle doit être éditée.
-                editingShape = shape;
-
-                // debugPrint('Édition texte : ${shape.id}');
-              });
-            },
-
-            onTapDown: (details) {
-              // ------------------------------------------------------------
-              // Gestion du clic selon l'outil actuellement actif.
-              // ------------------------------------------------------------
+              //onTapDown: (details) {
               //
-              // activeTool n'est plus nullable :
+              //  // details.localPosition = position du clic dans le widget,
+              //  // donc dans les coordonnées de l'écran.
+              //  final DiagramShape? shape =
+              //      _shapeAtScreenPosition(details.localPosition);
               //
-              // il vaut TOUJOURS exactement l'un de ces quatre modes :
+              //  setState(() {
+              //    selectedShape = shape;
+              //  });
               //
-              // - select
-              // - rectangle
-              // - circle
-              // - connector
-              //
-              // Nous n'avons donc plus besoin :
-              //
-              //   if (activeTool != null)
-              //
-              // ni :
-              //
-              //   activeTool!
-              //
-              setState(() {
-                switch (activeTool) {
-                  // --------------------------------------------------------
-                  // OUTIL SÉLECTION
-                  // --------------------------------------------------------
-                  case ToolType.select:
-                    // Recherche la forme située sous le clic.
-                    //
-                    // La méthode s'occupe déjà :
-                    // - de la conversion écran -> monde ;
-                    // - du rectangle ;
-                    // - du cercle.
-                    final DiagramShape? shape = _shapeAtScreenPosition(
-                      details.localPosition,
-                    );
-
-                    // null signifie simplement que l'utilisateur
-                    // a cliqué dans le vide.
-                    selectedShape = shape;
-
-                    // if (shape != null) {
-                    //   debugPrint('Forme sélectionnée : ${shape.id}');
-                    // } else {
-                    //   debugPrint('Aucune forme sélectionnée');
-                    // }
-
-                    break;
-
-                  // --------------------------------------------------------
-                  // OUTIL RECTANGLE
-                  // --------------------------------------------------------
-                  case ToolType.rectangle:
-                    _createRectangle(details.localPosition);
-
-                    break;
-
-                  // --------------------------------------------------------
-                  // OUTIL CERCLE
-                  // --------------------------------------------------------
-                  case ToolType.circle:
-                    _createCircle(details.localPosition);
-
-                    break;
-
-                  // --------------------------------------------------------
-                  // OUTIL CONNECTEUR
-                  // --------------------------------------------------------
-                  case ToolType.connector:
-                    _handleConnectorClick(details.localPosition);
-
-                    break;
+              //  if (shape != null) {
+              //    debugPrint('Forme sélectionnée : ${shape.id}');
+              //  } else {
+              //    debugPrint('Aucune forme sélectionnée');
+              //  }
+              //},
+              onDoubleTapDown: (details) {
+                // ------------------------------------------------------------
+                // Double clic / double tap
+                // ------------------------------------------------------------
+                //
+                // On ne veut éditer du texte que lorsqu'on utilise
+                // l'outil Sélection.
+                if (activeTool != ToolType.select) {
+                  return;
                 }
-              });
-            },
 
-            onScaleStart: (details) {
-              // ------------------------------------------------------------
-              // Début d'un geste
-              // ------------------------------------------------------------
-              //
-              // GestureDetector utilise "scale" aussi bien pour :
-              //
-              // - un drag à un doigt ;
-              // - un pinch à deux doigts.
-              //
-              // On mémorise donc l'état actuel du canevas afin que tous
-              // les calculs suivants partent d'une référence stable.
+                // Recherche la forme située sous le double clic/tap.
+                final DiagramShape? shape = _shapeAtScreenPosition(
+                  details.localPosition,
+                );
 
-              _gestureStartScale = scale;
-              _gestureStartOffset = offset;
+                // Double clic dans le vide :
+                // aucune édition.
+                if (shape == null) {
+                  return;
+                }
 
-              _gestureStartFocalPoint = details.localFocalPoint;
+                _textController.text = shape.text;
 
-              _lastGestureFocalPoint = details.localFocalPoint;
-
-              // On regarde également si le geste commence sur une forme.
-              //
-              // Si oui, un déplacement à UN doigt servira à déplacer
-              // cette forme.
-              final DiagramShape? shape = _shapeAtScreenPosition(
-                details.localFocalPoint,
-              );
-
-              setState(() {
-                draggedShape = shape;
-
-                if (shape != null) {
+                setState(() {
+                  // On sélectionne également la forme.
                   selectedShape = shape;
-                }
-              });
-            },
 
-            onScaleUpdate: (details) {
-              setState(() {
-                // ----------------------------------------------------------
-                // CAS 1 : deux doigts ou plus
-                // ----------------------------------------------------------
+                  // Et on mémorise qu'elle doit être éditée.
+                  editingShape = shape;
+
+                  // debugPrint('Édition texte : ${shape.id}');
+                });
+              },
+
+              onTapDown: (details) {
+                // ------------------------------------------------------------
+                // Gestion du clic selon l'outil actuellement actif.
+                // ------------------------------------------------------------
                 //
-                // Dans ce cas, on considère toujours que l'utilisateur
-                // manipule le CANEVAS et non une forme.
+                // activeTool n'est plus nullable :
                 //
-                // C'est notre pinch-to-zoom Android.
-                if (details.pointerCount >= 2) {
-                  // Nouveau niveau de zoom.
-                  //
-                  // details.scale est relatif au début du geste :
-                  //
-                  // 1.0 = taille inchangée
-                  // 1.2 = +20 %
-                  // 0.8 = -20 %
-                  final double newScale = (_gestureStartScale * details.scale)
-                      .clamp(0.1, 5.0);
+                // il vaut TOUJOURS exactement l'un de ces quatre modes :
+                //
+                // - select
+                // - rectangle
+                // - circle
+                // - connector
+                //
+                // Nous n'avons donc plus besoin :
+                //
+                //   if (activeTool != null)
+                //
+                // ni :
+                //
+                //   activeTool!
+                //
+                setState(() {
+                  switch (activeTool) {
+                    // --------------------------------------------------------
+                    // OUTIL SÉLECTION
+                    // --------------------------------------------------------
+                    case ToolType.select:
+                      // Recherche la forme située sous le clic.
+                      //
+                      // La méthode s'occupe déjà :
+                      // - de la conversion écran -> monde ;
+                      // - du rectangle ;
+                      // - du cercle.
+                      final DiagramShape? shape = _shapeAtScreenPosition(
+                        details.localPosition,
+                      );
 
-                  // --------------------------------------------------------
-                  // Trouver quel point DU MONDE se trouvait sous
-                  // le centre du geste au début du pinch.
-                  // --------------------------------------------------------
-                  //
-                  // monde = (écran - offset) / scale
-                  final Offset worldPointUnderGesture =
-                      (_gestureStartFocalPoint - _gestureStartOffset) /
-                      _gestureStartScale;
+                      // null signifie simplement que l'utilisateur
+                      // a cliqué dans le vide.
+                      selectedShape = shape;
 
-                  // --------------------------------------------------------
-                  // Recalcul de l'offset
-                  // --------------------------------------------------------
-                  //
-                  // On veut que ce même point du monde reste sous
-                  // les doigts pendant le zoom.
-                  //
-                  // écran = monde * scale + offset
-                  //
-                  // donc :
-                  //
-                  // offset = écran - monde * scale
-                  offset =
-                      details.localFocalPoint -
-                      worldPointUnderGesture * newScale;
+                      // if (shape != null) {
+                      //   debugPrint('Forme sélectionnée : ${shape.id}');
+                      // } else {
+                      //   debugPrint('Aucune forme sélectionnée');
+                      // }
 
-                  scale = newScale;
+                      break;
 
-                  // Pendant un pinch, on ne déplace jamais une forme.
-                  draggedShape = null;
-                }
-                // ----------------------------------------------------------
-                // CAS 2 : un seul doigt sur une forme
-                // ----------------------------------------------------------
-                else if (draggedShape != null) {
-                  // Calcul du déplacement depuis la dernière frame.
-                  final Offset screenDelta =
-                      details.localFocalPoint - _lastGestureFocalPoint;
+                    // --------------------------------------------------------
+                    // OUTIL RECTANGLE
+                    // --------------------------------------------------------
+                    case ToolType.rectangle:
+                      _createRectangle(details.localPosition);
 
-                  // La forme vit dans le monde.
-                  //
-                  // À 200 % :
-                  // 10 pixels écran = 5 unités monde.
-                  final Offset worldDelta = screenDelta / scale;
+                      break;
 
-                  draggedShape!.position += worldDelta;
-                }
-                // ----------------------------------------------------------
-                // CAS 3 : un seul doigt dans le vide
-                // ----------------------------------------------------------
-                else {
-                  // Un doigt sur le fond = déplacement du canevas.
-                  final Offset screenDelta =
-                      details.localFocalPoint - _lastGestureFocalPoint;
+                    // --------------------------------------------------------
+                    // OUTIL CERCLE
+                    // --------------------------------------------------------
+                    case ToolType.circle:
+                      _createCircle(details.localPosition);
 
-                  offset += screenDelta;
-                }
+                      break;
 
-                // Le point courant devient la référence
-                // pour la prochaine frame.
+                    // --------------------------------------------------------
+                    // OUTIL CONNECTEUR
+                    // --------------------------------------------------------
+                    case ToolType.connector:
+                      _handleConnectorClick(details.localPosition);
+
+                      break;
+                  }
+                });
+              },
+
+              onScaleStart: (details) {
+                // ------------------------------------------------------------
+                // Début d'un geste
+                // ------------------------------------------------------------
+                //
+                // GestureDetector utilise "scale" aussi bien pour :
+                //
+                // - un drag à un doigt ;
+                // - un pinch à deux doigts.
+                //
+                // On mémorise donc l'état actuel du canevas afin que tous
+                // les calculs suivants partent d'une référence stable.
+
+                _gestureStartScale = scale;
+                _gestureStartOffset = offset;
+
+                _gestureStartFocalPoint = details.localFocalPoint;
+
                 _lastGestureFocalPoint = details.localFocalPoint;
-              });
-            },
 
-            onScaleEnd: (details) {
-              // Le geste est terminé.
-              draggedShape = null;
-            },
+                // On regarde également si le geste commence sur une forme.
+                //
+                // Si oui, un déplacement à UN doigt servira à déplacer
+                // cette forme.
+                final DiagramShape? shape = _shapeAtScreenPosition(
+                  details.localFocalPoint,
+                );
 
-            /// SizedBox.expand force son enfant
-            /// à prendre toute la place disponible.
-            child: SizedBox.expand(
-              /// CustomPaint permet de dessiner directement sur un Canvas.
-              ///
-              /// C'est ici que nous allons faire une grosse partie
-              /// de notre moteur de diagrammes.
-              child: CustomPaint(
-                /// On passe l'offset actuel au peintre.
+                setState(() {
+                  draggedShape = shape;
+
+                  if (shape != null) {
+                    selectedShape = shape;
+                  }
+                });
+              },
+
+              onScaleUpdate: (details) {
+                setState(() {
+                  // ----------------------------------------------------------
+                  // CAS 1 : deux doigts ou plus
+                  // ----------------------------------------------------------
+                  //
+                  // Dans ce cas, on considère toujours que l'utilisateur
+                  // manipule le CANEVAS et non une forme.
+                  //
+                  // C'est notre pinch-to-zoom Android.
+                  if (details.pointerCount >= 2) {
+                    // Nouveau niveau de zoom.
+                    //
+                    // details.scale est relatif au début du geste :
+                    //
+                    // 1.0 = taille inchangée
+                    // 1.2 = +20 %
+                    // 0.8 = -20 %
+                    final double newScale = (_gestureStartScale * details.scale)
+                        .clamp(0.1, 5.0);
+
+                    // --------------------------------------------------------
+                    // Trouver quel point DU MONDE se trouvait sous
+                    // le centre du geste au début du pinch.
+                    // --------------------------------------------------------
+                    //
+                    // monde = (écran - offset) / scale
+                    final Offset worldPointUnderGesture =
+                        (_gestureStartFocalPoint - _gestureStartOffset) /
+                        _gestureStartScale;
+
+                    // --------------------------------------------------------
+                    // Recalcul de l'offset
+                    // --------------------------------------------------------
+                    //
+                    // On veut que ce même point du monde reste sous
+                    // les doigts pendant le zoom.
+                    //
+                    // écran = monde * scale + offset
+                    //
+                    // donc :
+                    //
+                    // offset = écran - monde * scale
+                    offset =
+                        details.localFocalPoint -
+                        worldPointUnderGesture * newScale;
+
+                    scale = newScale;
+
+                    // Pendant un pinch, on ne déplace jamais une forme.
+                    draggedShape = null;
+                  }
+                  // ----------------------------------------------------------
+                  // CAS 2 : un seul doigt sur une forme
+                  // ----------------------------------------------------------
+                  else if (draggedShape != null) {
+                    // Calcul du déplacement depuis la dernière frame.
+                    final Offset screenDelta =
+                        details.localFocalPoint - _lastGestureFocalPoint;
+
+                    // La forme vit dans le monde.
+                    //
+                    // À 200 % :
+                    // 10 pixels écran = 5 unités monde.
+                    final Offset worldDelta = screenDelta / scale;
+
+                    draggedShape!.position += worldDelta;
+                  }
+                  // ----------------------------------------------------------
+                  // CAS 3 : un seul doigt dans le vide
+                  // ----------------------------------------------------------
+                  else {
+                    // Un doigt sur le fond = déplacement du canevas.
+                    final Offset screenDelta =
+                        details.localFocalPoint - _lastGestureFocalPoint;
+
+                    offset += screenDelta;
+                  }
+
+                  // Le point courant devient la référence
+                  // pour la prochaine frame.
+                  _lastGestureFocalPoint = details.localFocalPoint;
+                });
+              },
+
+              onScaleEnd: (details) {
+                // Le geste est terminé.
+                draggedShape = null;
+              },
+
+              /// SizedBox.expand force son enfant
+              /// à prendre toute la place disponible.
+              child: SizedBox.expand(
+                /// CustomPaint permet de dessiner directement sur un Canvas.
                 ///
-                /// Le peintre ne modifie rien :
-                /// il reçoit simplement les informations
-                /// dont il a besoin pour dessiner.
-                painter: DiagramPainter(
-                  offset: offset,
-                  scale: scale,
-                  shapes: shapes,
-                  connectors: connectors,
-                  selectedShape: selectedShape,
+                /// C'est ici que nous allons faire une grosse partie
+                /// de notre moteur de diagrammes.
+                child: CustomPaint(
+                  /// On passe l'offset actuel au peintre.
+                  ///
+                  /// Le peintre ne modifie rien :
+                  /// il reçoit simplement les informations
+                  /// dont il a besoin pour dessiner.
+                  painter: DiagramPainter(
+                    offset: offset,
+                    scale: scale,
+                    shapes: shapes,
+                    connectors: connectors,
+                    selectedShape: selectedShape,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-
         if (editingShape != null)
           Positioned(
             // ----------------------------------------------------------
@@ -880,6 +982,12 @@ class _GridCanvasState extends State<GridCanvas> {
                 // Si on quitte ou réactive le mode connecteur,
                 // on repart sans première extrémité mémorisée.
                 connectorStartShape = null;
+              });
+            },
+
+            onDelete: () {
+              setState(() {
+                _deleteSelectedShape();
               });
             },
           ),

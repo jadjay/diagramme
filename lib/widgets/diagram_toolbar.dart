@@ -15,7 +15,12 @@ class DiagramToolbar extends StatelessWidget {
     super.key,
     required this.activeTool,
     required this.onToolSelected,
+    required this.onDelete,
   });
+
+  /// Callback appelé lorsque l'utilisateur demande
+  /// la suppression de la forme sélectionnée.
+  final VoidCallback onDelete;
 
   /// Outil actuellement actif.
   final ToolType activeTool;
@@ -30,12 +35,7 @@ class DiagramToolbar extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
-          BoxShadow(
-            blurRadius: 8,
-            color: Color(0x22000000),
-          ),
-        ],
+        boxShadow: const [BoxShadow(blurRadius: 8, color: Color(0x22000000))],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -60,6 +60,13 @@ class DiagramToolbar extends StatelessWidget {
             icon: Icons.arrow_right_alt,
             tool: ToolType.connector,
           ),
+          const Divider(),
+
+          _toolButton(
+            tooltip: 'Supprimer',
+            icon: Icons.delete_outline,
+            onPressed: onDelete,
+          ),
         ],
       ),
     );
@@ -71,23 +78,27 @@ class DiagramToolbar extends StatelessWidget {
   Widget _toolButton({
     required String tooltip,
     required IconData icon,
-    required ToolType tool,
+    ToolType? tool,
+    VoidCallback? onPressed,
   }) {
     return IconButton(
       tooltip: tooltip,
 
       style: IconButton.styleFrom(
-        backgroundColor:
-            activeTool == tool
-                ? Colors.blue.shade100
-                : Colors.transparent,
+        backgroundColor: tool != null && activeTool == tool
+            ? Colors.blue.shade100
+            : Colors.transparent,
       ),
 
       icon: Icon(icon),
 
-      onPressed: () {
-        onToolSelected(tool);
-      },
+      onPressed:
+          onPressed ??
+          () {
+            if (tool != null) {
+              onToolSelected(tool);
+            }
+          },
     );
   }
 }

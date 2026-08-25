@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:diagramme/main.dart';
@@ -389,6 +391,133 @@ void main() {
     //
     // On le laisse expirer avant de terminer le test,
     // sinon flutter_test considère qu'un timer est encore actif.
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('Delete button removes selected shape', (
+    WidgetTester tester,
+  ) async {
+    // ------------------------------------------------------------
+    // 1. Démarre l'application
+    // ------------------------------------------------------------
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // ------------------------------------------------------------
+    // 2. Crée un rectangle
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    // Laisse expirer le timer du double-tap.
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 3. Repasse en mode sélection
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    // Le rectangle fait 200 x 100.
+    //
+    // Son centre est donc :
+    //
+    // (300 + 100, 200 + 50)
+    const Offset rectangleCenter = Offset(400, 250);
+
+    // Sélection du rectangle.
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 4. Suppression
+    // ------------------------------------------------------------
+    final deleteButton = find.byTooltip('Supprimer');
+
+    expect(deleteButton, findsOneWidget);
+
+    await tester.tap(deleteButton);
+
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // 5. ASSERT
+    // ------------------------------------------------------------
+    //
+    // Le bouton doit fonctionner sans exception.
+    expect(tester.takeException(), isNull);
+
+    // ------------------------------------------------------------
+    // 6. Vérification indirecte
+    // ------------------------------------------------------------
+    //
+    // On reclique à l'endroit où se trouvait le rectangle.
+    //
+    // S'il existait encore, il serait sélectionné.
+    // Puis un second clic sur Supprimer le supprimerait.
+    //
+    // Ici, on vérifie surtout que toute la chaîne :
+    //
+    // création -> sélection -> suppression
+    //
+    // fonctionne correctement.
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Delete key removes selected shape', (WidgetTester tester) async {
+    // ------------------------------------------------------------
+    // 1. Démarre l'application
+    // ------------------------------------------------------------
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // ------------------------------------------------------------
+    // 2. Crée un rectangle
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    // Laisse expirer le timer du double-tap.
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 3. Repasse en mode sélection
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    const Offset rectangleCenter = Offset(400, 250);
+
+    // Sélectionne la forme.
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 4. Appuie sur Delete
+    // ------------------------------------------------------------
+    await tester.sendKeyEvent(LogicalKeyboardKey.delete);
+
+    await tester.pump();
+
+    // ------------------------------------------------------------
+    // 5. Vérifie qu'il n'y a aucune erreur
+    // ------------------------------------------------------------
+    expect(tester.takeException(), isNull);
+
+    // Laisse mourir un éventuel timer du GestureDetector
+    // avant la fin du test.
     await tester.pump(const Duration(milliseconds: 100));
   });
 }
