@@ -984,7 +984,28 @@ class _GridCanvasState extends State<GridCanvas> {
                 connectorStartShape = null;
               });
             },
+            onColorSelected: (color) {
+              final DiagramShape? shape = selectedShape;
 
+              if (shape == null) {
+                return;
+              }
+
+              setState(() {
+                shape.fillColor = color;
+              });
+            },
+            onStrokeColorSelected: (color) {
+              final DiagramShape? shape = selectedShape;
+
+              if (shape == null) {
+                return;
+              }
+
+              setState(() {
+                shape.strokeColor = color;
+              });
+            },
             onDelete: () {
               setState(() {
                 _deleteSelectedShape();

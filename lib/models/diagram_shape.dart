@@ -50,8 +50,6 @@ enum ShapeType { rectangle, circle }
 /// Mais on prépare une structure propre pour la suite.
 enum ToolType { select, rectangle, circle, connector }
 
-ToolType activeTool = ToolType.select;
-
 class DiagramShape {
   DiagramShape({
     required this.id,
@@ -60,6 +58,8 @@ class DiagramShape {
     required this.width,
     required this.height,
     this.text = '',
+    this.fillColor = Colors.white,
+    this.strokeColor = Colors.black,
   });
 
   /// Identifiant unique de la forme.
@@ -89,4 +89,10 @@ class DiagramShape {
   ///
   /// Chaîne vide = aucun texte.
   String text;
+
+  /// Couleur de remplissage de la forme.
+  Color fillColor;
+
+  /// Couleur du contour de la forme.
+  Color strokeColor;
 }

@@ -279,12 +279,12 @@ class DiagramPainter extends CustomPainter {
       //
       // On dessine d'abord le fond...
       final fillPaint = Paint()
-        ..color = Colors.white
+        ..color = shape.fillColor
         ..style = PaintingStyle.fill;
 
       // ...puis le contour par-dessus.
       final borderPaint = Paint()
-        ..color = Colors.black
+        ..color = shape.strokeColor
         ..style = PaintingStyle.stroke
         ..strokeWidth = 2.0;
 

@@ -520,4 +520,87 @@ void main() {
     // avant la fin du test.
     await tester.pump(const Duration(milliseconds: 100));
   });
+  testWidgets('Shape fill and stroke colors can be changed', (
+    WidgetTester tester,
+  ) async {
+    // ------------------------------------------------------------
+    // 1. Démarre l'application
+    // ------------------------------------------------------------
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // ------------------------------------------------------------
+    // 2. Crée un rectangle
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 3. Repasse en sélection
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    const Offset rectangleCenter = Offset(400, 250);
+
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 4. Ouvre la palette de remplissage
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Couleur de remplissage'));
+
+    await tester.pumpAndSettle();
+
+    // La palette doit apparaître.
+    expect(find.byTooltip('Rouge'), findsOneWidget);
+    await tester.tap(find.byTooltip('Rouge'));
+
+    await tester.pumpAndSettle();
+
+    // Ferme le menu Fill en cliquant dans le canvas.
+    await tester.tapAt(const Offset(700, 500));
+
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Couleur de contour'));
+
+    await tester.pumpAndSettle();
+    // ------------------------------------------------------------
+    // 5. Ouvre la palette de contour
+    // ------------------------------------------------------------
+
+    expect(find.byTooltip('Bleu'), findsOneWidget);
+
+    // Change le contour.
+    await tester.tap(find.byTooltip('Bleu'));
+
+    await tester.pumpAndSettle();
+
+    // ------------------------------------------------------------
+    // 6. Vérification
+    // ------------------------------------------------------------
+    //
+    // Les formes sont dessinées dans un CustomPainter,
+    // donc on ne peut pas interroger directement leur couleur
+    // avec un Finder.
+    //
+    // Ce test verrouille donc toute la chaîne utilisateur :
+    //
+    // sélection -> menu fill -> couleur
+    //           -> menu stroke -> couleur
+    //
+    // et vérifie surtout que les callbacks ne provoquent
+    // aucune exception.
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(milliseconds: 100));
+  });
 }
