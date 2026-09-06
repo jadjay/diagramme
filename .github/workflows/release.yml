@@ -16,6 +16,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate release tag
+        run: |
+          TAG_SHA="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+
+          if ! git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
+            echo "Release tag must point to a commit present in main."
+            exit 1
+          fi
+
+          PARENT_COUNT="$(git rev-list --parents -n 1 "${TAG_SHA}" | awk '{print NF - 1}')"
+
+          if [ "${PARENT_COUNT}" -lt 2 ]; then
+            echo "Release tag must point to the merge commit of a PR."
+            exit 1
+          fi
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
