@@ -15,9 +15,9 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 
 ## Documentation utilisateur
 
-- [WIP] Créer `USERDOC.md`.
-- [WIP] Rendre `USERDOC.md` accessible depuis l'application via un bouton d'aide.
-- [WIP] Créer `ROADMAP.md` et formaliser le workflow PR / merge / tag / release.
+- [x] Créer `USERDOC.md`.
+- [x] Rendre `USERDOC.md` accessible depuis l'application via un bouton d'aide.
+- [x] Créer `ROADMAP.md` et formaliser le workflow PR / merge / tag / release.
 
 ## Resize des formes
 
