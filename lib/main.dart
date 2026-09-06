@@ -1,30 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:diagramme/widgets/diagram_canvas.dart';
-
-/// Point d'entrée de l'application.
 
 void main() {
   runApp(const DiagrammeApp());
 }
 
-/// Widget racine de l'application.
-///
-/// StatelessWidget = widget sans état interne mutable.
-/// Ici, l'application elle-même ne stocke rien :
-/// elle se contente d'afficher notre écran principal.
 class DiagrammeApp extends StatelessWidget {
   const DiagrammeApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      // Supprime le petit bandeau "DEBUG" en haut à droite.
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        body: const GridCanvas(),
+        floatingActionButton: Builder(
+          builder: (context) {
+            return FloatingActionButton.small(
+              tooltip: 'Documentation utilisateur',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const UserDocumentationPage(),
+                  ),
+                );
+              },
+              child: const Icon(Icons.help_outline),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
 
-      // Scaffold fournit une structure de page Flutter classique.
-      // Pour l'instant on n'utilise ni AppBar ni boutons :
-      // juste notre zone de dessin.
-      home: Scaffold(body: GridCanvas()),
+class UserDocumentationPage extends StatelessWidget {
+  const UserDocumentationPage({super.key});
+
+  Future<String> _loadDocumentation() {
+    return rootBundle.loadString('USERDOC.md');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Documentation')),
+      body: FutureBuilder<String>(
+        future: _loadDocumentation(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError || snapshot.data == null) {
+            return const Center(
+              child: Text('Impossible de charger la documentation.'),
+            );
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: SelectableText(snapshot.data!),
+          );
+        },
+      ),
     );
   }
 }

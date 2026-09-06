@@ -2,6 +2,23 @@
 
 Ce document regroupe les prochaines étapes envisagées pour **Diagramme**.
 
+## Convention de travail
+
+Pour chaque PR fonctionnelle :
+
+- la fonctionnalité travaillée est marquée `[WIP]` dans ce fichier ;
+- juste avant le merge, `[WIP]` est retiré et la tâche est cochée `[x]` ;
+- le tag de version est posé sur le commit de merge ;
+- la GitHub Release est générée à partir de ce tag.
+
+La vision à moyen terme est détaillée dans `ROADMAP.md`.
+
+## Documentation utilisateur
+
+- [x] Créer `USERDOC.md`.
+- [x] Rendre `USERDOC.md` accessible depuis l'application via un bouton d'aide.
+- [x] Créer `ROADMAP.md` et formaliser le workflow PR / merge / tag / release.
+
 ## Resize des formes
 
 - [ ] Ajouter une seule poignée de redimensionnement en bas à droite de la forme sélectionnée.
@@ -97,8 +114,8 @@ Améliorations possibles :
 2. `flutter test`
 3. Tester manuellement les fonctions principales.
 4. Rebase/fixup des commits WIP si nécessaire.
-5. Créer un commit final lisible.
-6. Pousser `main`.
-7. Créer le nouveau tag de version.
+5. Mettre à jour `TODO.md` : retirer `[WIP]` et passer la fonctionnalité terminée à `[x]`.
+6. Merger la PR dans `main`.
+7. Créer le nouveau tag de version sur le commit de merge.
 8. Pousser le tag.
 9. Vérifier le workflow GitHub Actions et les artifacts de la release.
