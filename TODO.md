@@ -101,6 +101,10 @@ Améliorations possibles :
 - [x] Build Linux.
 - [x] Build Android APK.
 - [x] Création automatique des releases GitHub à partir des tags.
+- [x] Tag et release automatiques à chaque merge de PR dans `main` (incrément de patch).
+- [x] Artefact "dev" (Android + Linux) généré à la demande sur une PR via le label `build-dev`,
+      installable en parallèle de l'app `diagramme` grâce au flavor Android `dev`
+      (`applicationId` suffixé `.dev`).
 
 À prévoir :
 

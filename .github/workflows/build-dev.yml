@@ -1,0 +1,100 @@
+name: Build dev artifact
+
+# Génère un artefact de test "diagramme-dev" à la demande, en ajoutant
+# le label "build-dev" sur une PR (jamais automatiquement à chaque commit).
+#
+# L'APK Android utilise le flavor "dev" (applicationId suffixé ".dev",
+# nom d'app "diagramme-dev") : il s'installe donc à côté de l'app
+# "diagramme" standard sans conflit.
+#
+# Pour relancer un build : retirer puis remettre le label sur la PR.
+
+on:
+  pull_request:
+    types: [labeled]
+
+permissions:
+  contents: read
+
+jobs:
+  build-dev-android:
+    name: Build Android APK (dev)
+    if: github.event.label.name == 'build-dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build APK
+        run: flutter build apk --release --flavor dev
+
+      - name: Rename APK
+        run: |
+          cp build/app/outputs/flutter-apk/app-dev-release.apk \
+             diagramme-dev-pr${{ github.event.pull_request.number }}-android.apk
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagramme-dev-android
+          path: diagramme-dev-pr${{ github.event.pull_request.number }}-android.apk
+
+  build-dev-linux:
+    name: Build Linux (dev)
+    if: github.event.label.name == 'build-dev'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            clang \
+            cmake \
+            ninja-build \
+            pkg-config \
+            libgtk-3-dev \
+            liblzma-dev
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: "3.47.1"
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Linux
+        run: flutter build linux --release
+
+      - name: Create Linux archive
+        run: |
+          tar -C build/linux/x64/release/bundle \
+              -czf diagramme-dev-pr${{ github.event.pull_request.number }}-linux-x64.tar.gz \
+              .
+
+      - name: Upload Linux artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagramme-dev-linux
+          path: diagramme-dev-pr${{ github.event.pull_request.number }}-linux-x64.tar.gz

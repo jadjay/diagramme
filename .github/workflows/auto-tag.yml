@@ -1,0 +1,66 @@
+name: Auto tag release
+
+# Pose automatiquement un tag "vX.Y.Z" sur chaque commit de merge d'une PR
+# vers main, ce qui déclenche automatiquement le workflow Release
+# (.github/workflows/release.yml, sur push de tag "v*").
+#
+# Convention : incrément automatique du patch à chaque merge.
+# 1 PR mergée dans main = 1 tag = 1 release.
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    name: Tag merge commit
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check if this push is a PR merge commit
+        id: check
+        run: |
+          PARENT_COUNT="$(git rev-list --parents -n 1 HEAD | awk '{print NF - 1}')"
+
+          if [ "${PARENT_COUNT}" -lt 2 ]; then
+            echo "Pas un commit de merge, on ne tague pas."
+            echo "is_merge=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_merge=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Compute next patch tag
+        if: steps.check.outputs.is_merge == 'true'
+        id: version
+        run: |
+          LAST_TAG="$(git tag --list 'v*' --sort=-v:refname | head -n1)"
+
+          if [ -z "${LAST_TAG}" ]; then
+            NEXT_TAG="v0.1.0"
+          else
+            VERSION="${LAST_TAG#v}"
+            MAJOR="$(echo "${VERSION}" | cut -d. -f1)"
+            MINOR="$(echo "${VERSION}" | cut -d. -f2)"
+            PATCH="$(echo "${VERSION}" | cut -d. -f3)"
+            NEXT_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          fi
+
+          echo "Prochain tag : ${NEXT_TAG}"
+          echo "tag=${NEXT_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push tag
+        if: steps.check.outputs.is_merge == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "${{ steps.version.outputs.tag }}" -m "Release ${{ steps.version.outputs.tag }}"
+          git push origin "${{ steps.version.outputs.tag }}"

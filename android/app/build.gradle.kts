@@ -29,6 +29,25 @@ android {
         versionName = flutter.versionName
     }
 
+    // Deux flavors avec des applicationId différents, pour pouvoir installer
+    // en parallèle sur le même appareil :
+    // - prod : la release publiée (applicationId inchangé)
+    // - dev  : artefact de test généré à la demande sur une PR
+    //          (voir .github/workflows/build-dev.yml)
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("prod") {
+            dimension = "distribution"
+            resValue("string", "app_name", "diagramme")
+        }
+        create("dev") {
+            dimension = "distribution"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            resValue("string", "app_name", "diagramme-dev")
+        }
+    }
+
     buildTypes {
         release {
             // TODO: Add your own signing config for the release build.
