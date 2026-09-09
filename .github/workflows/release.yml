@@ -1,12 +1,27 @@
 name: Release
 
+# Se déclenche normalement sur un push de tag "v*".
+#
+# Un tag poussé par un workflow avec le GITHUB_TOKEN par défaut (voir
+# auto-tag.yml) ne déclenche PAS cet évènement "push: tags" (protection
+# GitHub contre les boucles infinies). auto-tag.yml appelle donc ce
+# workflow explicitement via `gh workflow run` (workflow_dispatch), qui
+# lui n'est pas soumis à cette restriction.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag à publier (ex: v1.2.3)"
+        required: true
 
 permissions:
   contents: write
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   test:
@@ -17,11 +32,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          ref: ${{ env.RELEASE_TAG }}
           fetch-depth: 0
 
       - name: Validate release tag
         run: |
-          TAG_SHA="$(git rev-list -n 1 "${GITHUB_REF_NAME}")"
+          TAG_SHA="$(git rev-list -n 1 "${RELEASE_TAG}")"
 
           if ! git merge-base --is-ancestor "${TAG_SHA}" origin/main; then
             echo "Release tag must point to a commit present in main."
@@ -59,6 +75,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -76,13 +94,13 @@ jobs:
       - name: Rename APK
         run: |
           cp build/app/outputs/flutter-apk/app-prod-release.apk \
-             diagramme-${{ github.ref_name }}-android.apk
+             diagramme-${{ env.RELEASE_TAG }}-android.apk
 
       - name: Upload Android artifact
         uses: actions/upload-artifact@v4
         with:
           name: android
-          path: diagramme-${{ github.ref_name }}-android.apk
+          path: diagramme-${{ env.RELEASE_TAG }}-android.apk
 
   build-linux:
     name: Build Linux
@@ -92,6 +110,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Install Linux dependencies
         run: |
@@ -120,14 +140,14 @@ jobs:
       - name: Create Linux archive
         run: |
           tar -C build/linux/x64/release/bundle \
-              -czf diagramme-${{ github.ref_name }}-linux-x64.tar.gz \
+              -czf diagramme-${{ env.RELEASE_TAG }}-linux-x64.tar.gz \
               .
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: diagramme-${{ github.ref_name }}-linux-x64.tar.gz
+          path: diagramme-${{ env.RELEASE_TAG }}-linux-x64.tar.gz
 
   release:
     name: Create GitHub release
@@ -139,6 +159,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -149,8 +171,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
+          gh release create "${{ env.RELEASE_TAG }}" \
             artifacts/android/*.apk \
             artifacts/linux/*.tar.gz \
-            --title "${{ github.ref_name }}" \
+            --title "${{ env.RELEASE_TAG }}" \
             --generate-notes
