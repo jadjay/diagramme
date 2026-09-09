@@ -34,6 +34,8 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
       avec tests unitaires (`test/shape_hit_tester_test.dart`).
 - [x] Extraire la logique pan / zoom / transformation du canevas vers
       `CanvasViewport`, avec tests unitaires (`test/canvas_viewport_test.dart`).
+- [x] Extraire le champ de texte superposé vers `ShapeTextEditor`
+      (widget autonome, sans état). `diagram_canvas.dart` : 1019 → 526 lignes.
 
 ## Resize des formes
 

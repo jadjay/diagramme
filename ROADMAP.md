@@ -37,7 +37,10 @@ Pour chaque PR fonctionnelle :
 - [x] Extraire la logique pan / zoom / transformation du canevas
       (`CanvasViewport` dans `lib/models/canvas_viewport.dart`, testé
       indépendamment de tout widget).
-- [ ] Réduire progressivement la taille de `diagram_canvas.dart`.
+- [x] Réduire progressivement la taille de `diagram_canvas.dart` — conséquence
+      des trois extractions précédentes, plus l'extraction du champ de texte
+      superposé vers `ShapeTextEditor` (`lib/widgets/shape_text_editor.dart`).
+      1019 → 526 lignes (-48 %), sans changement de comportement.
 
 ## Phase 3 — Édition avancée
 
