@@ -34,7 +34,9 @@ Pour chaque PR fonctionnelle :
 - [x] Extraire la logique de sélection et de hit-testing (`ShapeHitTester`
       dans `lib/models/shape_hit_tester.dart`, testé indépendamment de
       tout widget).
-- [ ] Extraire la logique pan / zoom / transformation du canevas.
+- [x] Extraire la logique pan / zoom / transformation du canevas
+      (`CanvasViewport` dans `lib/models/canvas_viewport.dart`, testé
+      indépendamment de tout widget).
 - [ ] Réduire progressivement la taille de `diagram_canvas.dart`.
 
 ## Phase 3 — Édition avancée
