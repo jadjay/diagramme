@@ -53,13 +53,21 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 
 ## Texte multiligne
 
-- [ ] Remplacer l'édition actuelle par un véritable champ multiligne.
-- [ ] Utiliser un `TextField` avec `maxLines: null`.
-- [ ] Faire de `Entrée` un retour à la ligne plutôt qu'une validation.
-- [ ] Valider l'édition par perte de focus, clic extérieur et/ou `Ctrl+Entrée`.
-- [ ] Adapter le rendu du texte dans le `CustomPainter` pour respecter les retours à la ligne et la largeur de la forme.
-- [ ] Vérifier le comportement du texte lors du resize d'une forme.
-- [ ] Ajouter un test widget spécifique au texte multiligne.
+- [x] Remplacer l'édition actuelle par un véritable champ multiligne.
+- [x] Utiliser un `TextField` avec `maxLines: null`.
+- [x] Faire de `Entrée` un retour à la ligne plutôt qu'une validation.
+- [x] Valider l'édition par clic extérieur (`TapRegion.onTapOutside`) et/ou
+      `Ctrl+Entrée` (`Focus.onKeyEvent`) — `onSubmitted` reste aussi disponible
+      pour un éventuel "done" explicite de la plateforme.
+- [x] Adapter le rendu du texte dans le `CustomPainter` pour respecter les retours
+      à la ligne et la largeur de la forme (déjà pris en charge par
+      `TextPainter`/`maxWidth` ; ajout d'un `clipRect` pour qu'un texte trop haut
+      ne dépasse jamais visuellement de la forme).
+- [x] Vérifier le comportement du texte lors du resize d'une forme (recalculé à
+      chaque frame de dessin, donc déjà correct ; test dédié ajouté).
+- [x] Ajouter des tests widget spécifiques au texte multiligne (`test/widget_test.dart`) :
+      Entrée insère un retour à la ligne, Ctrl+Entrée valide, clic extérieur valide,
+      clic à l'intérieur du champ ne valide pas, comportement pendant un resize.
 
 ## Couleurs
 
