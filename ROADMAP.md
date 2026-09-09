@@ -20,10 +20,10 @@ Pour chaque PR fonctionnelle :
 
 ## Phase 1 — Nettoyage et documentation
 
-- [WIP] Ajouter une documentation utilisateur embarquée (`USERDOC.md`) accessible depuis l'application.
-- [WIP] Formaliser la roadmap et le workflow PR / merge / tag / release.
-- [ ] Refaire le `README.md` pour présenter réellement le projet.
-- [ ] Supprimer les fichiers historiques devenus inutiles (`main.dart_Old`, blocs de test commentés, etc.).
+- [x] Ajouter une documentation utilisateur embarquée (`USERDOC.md`) accessible depuis l'application.
+- [x] Formaliser la roadmap et le workflow PR / merge / tag / release.
+- [x] Refaire le `README.md` pour présenter réellement le projet.
+- [x] Supprimer les fichiers historiques devenus inutiles (`main.dart_Old`, blocs de test commentés, etc.).
 
 ## Phase 2 — Refactorisation du cœur
 

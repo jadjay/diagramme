@@ -125,10 +125,6 @@ class _GridCanvasState extends State<GridCanvas> {
       connectorStartShape = clickedShape;
       selectedShape = clickedShape;
 
-      // debugPrint(
-      //   'Début connecteur : ${clickedShape.id}',
-      // );
-
       return;
     }
 
@@ -148,11 +144,6 @@ class _GridCanvasState extends State<GridCanvas> {
         toShapeId: clickedShape.id,
       ),
     );
-
-    // debugPrint(
-    //   'Connecteur : '
-    //   '${connectorStartShape!.id} -> ${clickedShape.id}',
-    // );
 
     // Le connecteur est terminé.
     connectorStartShape = null;
@@ -181,64 +172,12 @@ class _GridCanvasState extends State<GridCanvas> {
   /// 0.5 = 50 %
   double scale = 1.0;
 
-  /// Le canevas démarre maintenant réellement vide.
+  /// Le canevas démarre réellement vide.
   /// Les formes seront ajoutées par l'utilisateur.
   final List<DiagramShape> shapes = [];
-  // final List<DiagramShape> shapes = [
-  //   DiagramShape(
-  //     id: 'circle-1',
-  //     type: ShapeType.circle,
-  //
-  //     // Position du coin supérieur gauche
-  //     // de sa boîte englobante.
-  //     position: const Offset(400, 200),
-  //
-  //     // width == height => cercle.
-  //     width: 120,
-  //     height: 120,
-  //     text: 'Hello',
-  //
-  //   ),
-  // ];
-  // TEST final List<DiagramShape> shapes = [
-  // TEST   DiagramShape(
-  // TEST     id: 'circle-1',
-  // TEST     type: ShapeType.circle,
-  // TEST
-  // TEST     // Position du coin supérieur gauche
-  // TEST     // de sa boîte englobante.
-  // TEST     position: const Offset(400, 200),
-  // TEST
-  // TEST     // width == height => cercle.
-  // TEST     width: 120,
-  // TEST     height: 120,
-  // TEST   ),
-  // TEST   DiagramShape(
-  // TEST     id: 'rectangle-2',
-  // TEST     type: ShapeType.rectangle,
-  // TEST
-  // TEST     // Position du coin supérieur gauche
-  // TEST     // de sa boîte englobante.
-  // TEST     position: const Offset(800, 200),
-  // TEST
-  // TEST     // width == height => cercle.
-  // TEST     width: 120,
-  // TEST     height: 120,
-  // TEST   ),
-  // TEST ];
 
   /// Tous les connecteurs présents dans le diagramme.
-  ///
-  /// Pour l'instant la liste est vide.
-  /// On va bientôt y ajouter un connecteur de test.
   final List<DiagramConnector> connectors = [];
-  // TEST final List<DiagramConnector> connectors = [
-  // TEST   DiagramConnector(
-  // TEST     id: 'connector-test',
-  // TEST     fromShapeId: 'circle-1',
-  // TEST     toShapeId: 'rectangle-2',
-  // TEST   ),
-  // TEST ];
 
   /// Première forme choisie lors de la création d'un connecteur.
   ///
@@ -473,7 +412,6 @@ class _GridCanvasState extends State<GridCanvas> {
   ///
   /// null signifie :
   /// mode normal de sélection/déplacement.
-  //ToolType? activeTool;
   ToolType activeTool = ToolType.select;
 
   /// État mémorisé au début d'un geste tactile.
@@ -611,23 +549,6 @@ class _GridCanvasState extends State<GridCanvas> {
               /// capture les interactions, même si elle est visuellement vide.
               behavior: HitTestBehavior.opaque,
 
-              //onTapDown: (details) {
-              //
-              //  // details.localPosition = position du clic dans le widget,
-              //  // donc dans les coordonnées de l'écran.
-              //  final DiagramShape? shape =
-              //      _shapeAtScreenPosition(details.localPosition);
-              //
-              //  setState(() {
-              //    selectedShape = shape;
-              //  });
-              //
-              //  if (shape != null) {
-              //    debugPrint('Forme sélectionnée : ${shape.id}');
-              //  } else {
-              //    debugPrint('Aucune forme sélectionnée');
-              //  }
-              //},
               onDoubleTapDown: (details) {
                 // ------------------------------------------------------------
                 // Double clic / double tap
@@ -658,8 +579,6 @@ class _GridCanvasState extends State<GridCanvas> {
 
                   // Et on mémorise qu'elle doit être éditée.
                   editingShape = shape;
-
-                  // debugPrint('Édition texte : ${shape.id}');
                 });
               },
 
@@ -704,12 +623,6 @@ class _GridCanvasState extends State<GridCanvas> {
                       // null signifie simplement que l'utilisateur
                       // a cliqué dans le vide.
                       selectedShape = shape;
-
-                      // if (shape != null) {
-                      //   debugPrint('Forme sélectionnée : ${shape.id}');
-                      // } else {
-                      //   debugPrint('Aucune forme sélectionnée');
-                      // }
 
                       break;
 
