@@ -3,9 +3,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import 'package:diagramme/models/diagram_shape.dart';
-import 'package:diagramme/models/canvas_transform.dart';
 import 'package:diagramme/models/diagram_document.dart';
 import 'package:diagramme/models/shape_hit_tester.dart';
+import 'package:diagramme/models/canvas_viewport.dart';
 
 import 'package:diagramme/painters/diagram_painter.dart';
 
@@ -56,9 +56,9 @@ class _GridCanvasState extends State<GridCanvas> {
   ///
   ///   monde = (écran - offset) / scale
   void _createRectangle(Offset screenPosition) {
-    final transform = CanvasTransform(offset: offset, scale: scale);
-
-    final Offset worldPosition = transform.screenToWorld(screenPosition);
+    final Offset worldPosition = viewport.transform.screenToWorld(
+      screenPosition,
+    );
 
     document.addRectangle(worldPosition);
   }
@@ -69,9 +69,9 @@ class _GridCanvasState extends State<GridCanvas> {
   /// au système de coordonnées de l'écran ; on la convertit donc
   /// en coordonnées du monde avant de créer la forme.
   void _createCircle(Offset screenPosition) {
-    final transform = CanvasTransform(offset: offset, scale: scale);
-
-    final Offset worldPosition = transform.screenToWorld(screenPosition);
+    final Offset worldPosition = viewport.transform.screenToWorld(
+      screenPosition,
+    );
 
     document.addCircle(worldPosition);
   }
@@ -93,23 +93,10 @@ class _GridCanvasState extends State<GridCanvas> {
     document.handleConnectorTarget(clickedShape);
   }
 
-  /// Décalage actuel du canevas.
-  ///
-  /// Offset contient deux nombres :
-  /// - dx : déplacement horizontal
-  /// - dy : déplacement vertical
-  ///
-  /// Offset.zero signifie :
-  /// dx = 0
-  /// dy = 0
-  Offset offset = Offset.zero;
-
-  /// Facteur de zoom du canevas.
-  ///
-  /// 1.0 = 100 %
-  /// 2.0 = 200 %
-  /// 0.5 = 50 %
-  double scale = 1.0;
+  /// Pan / zoom du canevas (décalage, niveau de zoom, et les calculs
+  /// qui les font évoluer en réponse à la molette ou à un geste
+  /// tactile). Voir [CanvasViewport].
+  final CanvasViewport viewport = CanvasViewport();
 
   final TextEditingController _textController = TextEditingController();
 
@@ -143,12 +130,12 @@ class _GridCanvasState extends State<GridCanvas> {
   /// donc exprimée dans les coordonnées DE L'ÉCRAN.
   ///
   /// Nos formes, elles, sont stockées dans les coordonnées DU MONDE :
-  /// on convertit donc d'abord via [CanvasTransform], puis on délègue
-  /// la géométrie du hit-testing à [ShapeHitTester].
+  /// on convertit donc d'abord via [CanvasViewport.transform], puis on
+  /// délègue la géométrie du hit-testing à [ShapeHitTester].
   DiagramShape? _shapeAtScreenPosition(Offset screenPosition) {
-    final transform = CanvasTransform(offset: offset, scale: scale);
-
-    final Offset worldPosition = transform.screenToWorld(screenPosition);
+    final Offset worldPosition = viewport.transform.screenToWorld(
+      screenPosition,
+    );
 
     return ShapeHitTester(document.shapes).shapeAt(worldPosition);
   }
@@ -159,27 +146,12 @@ class _GridCanvasState extends State<GridCanvas> {
   /// mode normal de sélection/déplacement.
   ToolType activeTool = ToolType.select;
 
-  /// État mémorisé au début d'un geste tactile.
-  ///
-  /// Un geste "scale" Flutter peut représenter :
-  ///
-  /// - un drag avec un seul doigt ;
-  /// - un pinch avec deux doigts ;
-  /// - un pinch + déplacement simultané.
-  double _gestureStartScale = 1.0;
-
-  Offset _gestureStartOffset = Offset.zero;
-
-  /// Point focal au début du geste.
-  ///
-  /// Avec un doigt : position du doigt.
-  /// Avec deux doigts : point situé entre les deux doigts.
-  Offset _gestureStartFocalPoint = Offset.zero;
-
   /// Point focal de la frame précédente.
   ///
-  /// Il nous permet de calculer le déplacement d'un doigt
-  /// lorsque l'utilisateur déplace une forme.
+  /// Il nous permet de calculer le déplacement d'un doigt lorsque
+  /// l'utilisateur déplace une forme (le pan/zoom du canevas lui-même
+  /// est géré par [viewport], mais ce point est aussi utilisé pour le
+  /// drag d'une forme — voir CAS 2 dans onScaleUpdate).
   Offset _lastGestureFocalPoint = Offset.zero;
 
   void _handleMouseWheel(PointerScrollEvent event) {
@@ -197,51 +169,8 @@ class _GridCanvasState extends State<GridCanvas> {
     // donne un zoom plus régulier.
     final double zoomFactor = event.scrollDelta.dy < 0 ? 1.1 : 1 / 1.1;
 
-    // On calcule le nouveau niveau de zoom.
-    //
-    // clamp() impose des limites :
-    //   0.1 = 10 %
-    //   5.0 = 500 %
-    //
-    // Ça évite de pouvoir zoomer jusqu'à zéro ou l'infini.
-    final double newScale = (scale * zoomFactor).clamp(0.1, 5.0);
-
-    // ---------------------------------------------------------------
-    // Partie importante : conserver le point sous la souris
-    // ---------------------------------------------------------------
-    //
-    // Notre transformation monde -> écran sera :
-    //
-    //   écran = monde * scale + offset
-    //
-    // On cherche donc d'abord quelle coordonnée DU MONDE
-    // se trouve actuellement sous la souris.
-    //
-    // En inversant la formule :
-    //
-    //   monde = (écran - offset) / scale
-    //
-    final Offset worldPointUnderMouse = (mousePosition - offset) / scale;
-
-    // Maintenant nous changeons le zoom.
-    //
-    // Mais si on changeait seulement "scale", le point observé
-    // se déplacerait à l'écran.
-    //
-    // On recalcule donc offset pour que :
-    //
-    //   mousePosition =
-    //       worldPointUnderMouse * newScale + newOffset
-    //
-    // donc :
-    //
-    //   newOffset =
-    //       mousePosition - worldPointUnderMouse * newScale
-    final Offset newOffset = mousePosition - worldPointUnderMouse * newScale;
-
     setState(() {
-      scale = newScale;
-      offset = newOffset;
+      viewport.zoomAt(mousePosition, zoomFactor);
     });
   }
 
@@ -411,10 +340,7 @@ class _GridCanvasState extends State<GridCanvas> {
                 // On mémorise donc l'état actuel du canevas afin que tous
                 // les calculs suivants partent d'une référence stable.
 
-                _gestureStartScale = scale;
-                _gestureStartOffset = offset;
-
-                _gestureStartFocalPoint = details.localFocalPoint;
+                viewport.beginGesture(details.localFocalPoint);
 
                 _lastGestureFocalPoint = details.localFocalPoint;
 
@@ -446,43 +372,12 @@ class _GridCanvasState extends State<GridCanvas> {
                   //
                   // C'est notre pinch-to-zoom Android.
                   if (details.pointerCount >= 2) {
-                    // Nouveau niveau de zoom.
-                    //
                     // details.scale est relatif au début du geste :
                     //
                     // 1.0 = taille inchangée
                     // 1.2 = +20 %
                     // 0.8 = -20 %
-                    final double newScale = (_gestureStartScale * details.scale)
-                        .clamp(0.1, 5.0);
-
-                    // --------------------------------------------------------
-                    // Trouver quel point DU MONDE se trouvait sous
-                    // le centre du geste au début du pinch.
-                    // --------------------------------------------------------
-                    //
-                    // monde = (écran - offset) / scale
-                    final Offset worldPointUnderGesture =
-                        (_gestureStartFocalPoint - _gestureStartOffset) /
-                        _gestureStartScale;
-
-                    // --------------------------------------------------------
-                    // Recalcul de l'offset
-                    // --------------------------------------------------------
-                    //
-                    // On veut que ce même point du monde reste sous
-                    // les doigts pendant le zoom.
-                    //
-                    // écran = monde * scale + offset
-                    //
-                    // donc :
-                    //
-                    // offset = écran - monde * scale
-                    offset =
-                        details.localFocalPoint -
-                        worldPointUnderGesture * newScale;
-
-                    scale = newScale;
+                    viewport.applyPinch(details.localFocalPoint, details.scale);
 
                     // Pendant un pinch, on ne déplace jamais une forme.
                     document.draggedShape = null;
@@ -499,7 +394,7 @@ class _GridCanvasState extends State<GridCanvas> {
                     //
                     // À 200 % :
                     // 10 pixels écran = 5 unités monde.
-                    final Offset worldDelta = screenDelta / scale;
+                    final Offset worldDelta = screenDelta / viewport.scale;
 
                     document.draggedShape!.position += worldDelta;
                   }
@@ -511,7 +406,7 @@ class _GridCanvasState extends State<GridCanvas> {
                     final Offset screenDelta =
                         details.localFocalPoint - _lastGestureFocalPoint;
 
-                    offset += screenDelta;
+                    viewport.panBy(screenDelta);
                   }
 
                   // Le point courant devient la référence
@@ -539,8 +434,8 @@ class _GridCanvasState extends State<GridCanvas> {
                   /// il reçoit simplement les informations
                   /// dont il a besoin pour dessiner.
                   painter: DiagramPainter(
-                    offset: offset,
-                    scale: scale,
+                    offset: viewport.offset,
+                    scale: viewport.scale,
                     shapes: document.shapes,
                     connectors: document.connectors,
                     selectedShape: document.selectedShape,
@@ -559,16 +454,18 @@ class _GridCanvasState extends State<GridCanvas> {
             // shape.position est en coordonnées MONDE.
             //
             // écran = monde * scale + offset
-            left: document.editingShape!.position.dx * scale + offset.dx,
+            left:
+                document.editingShape!.position.dx * viewport.scale +
+                viewport.offset.dx,
 
             // Centre verticalement le champ dans la forme.
             top:
-                document.editingShape!.position.dy * scale +
-                offset.dy +
-                (document.editingShape!.height * scale - 48.0) / 2,
+                document.editingShape!.position.dy * viewport.scale +
+                viewport.offset.dy +
+                (document.editingShape!.height * viewport.scale - 48.0) / 2,
 
             // L'éditeur prend la largeur actuelle de la forme.
-            width: document.editingShape!.width * scale,
+            width: document.editingShape!.width * viewport.scale,
             height: 48.0,
             child: TextField(
               controller: _textController,
@@ -625,7 +522,11 @@ class _GridCanvasState extends State<GridCanvas> {
             ),
           ),
 
-        Positioned(right: 16, bottom: 16, child: ZoomIndicator(scale: scale)),
+        Positioned(
+          right: 16,
+          bottom: 16,
+          child: ZoomIndicator(scale: viewport.scale),
+        ),
 
         Positioned(
           left: 16,

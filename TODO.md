@@ -32,7 +32,8 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
       de `GridCanvas` vers `DiagramDocument`.
 - [x] Extraire la logique de sélection et de hit-testing vers `ShapeHitTester`,
       avec tests unitaires (`test/shape_hit_tester_test.dart`).
-- [ ] Extraire la logique pan / zoom / transformation du canevas.
+- [x] Extraire la logique pan / zoom / transformation du canevas vers
+      `CanvasViewport`, avec tests unitaires (`test/canvas_viewport_test.dart`).
 
 ## Resize des formes
 
