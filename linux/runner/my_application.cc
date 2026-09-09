@@ -4,8 +4,24 @@
 #ifdef GDK_WINDOWING_X11
 #include <gdk/gdkx.h>
 #endif
+#include <limits.h>
+#include <unistd.h>
 
 #include "flutter/generated_plugin_registrant.h"
+
+// Chemin de l'icône installée par CMake à côté du bundle (voir
+// linux/CMakeLists.txt : install(FILES assets/diagramme.png ...)),
+// résolu par rapport à l'exécutable réel plutôt qu'au répertoire courant.
+static gchar* get_icon_path() {
+  char exe_path[PATH_MAX];
+  ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (len == -1) {
+    return nullptr;
+  }
+  exe_path[len] = '\0';
+  g_autofree gchar* exe_dir = g_path_get_dirname(exe_path);
+  return g_build_filename(exe_dir, "data", "diagramme.png", nullptr);
+}
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -53,6 +69,12 @@ static void my_application_activate(GApplication* application) {
   }
 
   gtk_window_set_default_size(window, 1280, 720);
+
+  g_autofree gchar* icon_path = get_icon_path();
+  if (icon_path != nullptr) {
+    g_autoptr(GError) icon_error = nullptr;
+    gtk_window_set_icon_from_file(window, icon_path, &icon_error);
+  }
 
   g_autoptr(FlDartProject) project = fl_dart_project_new();
   fl_dart_project_set_dart_entrypoint_arguments(

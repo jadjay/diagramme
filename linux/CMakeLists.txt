@@ -100,6 +100,13 @@ install(FILES "${FLUTTER_ICU_DATA_FILE}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}
 install(FILES "${FLUTTER_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
   COMPONENT Runtime)
 
+# Application icon, shown as the window/taskbar icon at runtime
+# (see my_application.cc). Not a Flutter asset: installed next to the
+# bundle's data directory rather than inside flutter_assets.
+install(FILES "${CMAKE_SOURCE_DIR}/assets/diagramme.png"
+  DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
+  COMPONENT Runtime)
+
 foreach(bundled_library ${PLUGIN_BUNDLED_LIBRARIES})
   install(FILES "${bundled_library}"
     DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
