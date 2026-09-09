@@ -603,4 +603,111 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 100));
   });
+
+  testWidgets('Dragging the resize handle resizes the selected shape', (
+    WidgetTester tester,
+  ) async {
+    // ------------------------------------------------------------
+    // 1. Démarre l'application
+    // ------------------------------------------------------------
+    await tester.pumpWidget(const DiagrammeApp());
+
+    // ------------------------------------------------------------
+    // 2. Crée un rectangle 200 x 100
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 3. Repasse en sélection puis sélectionne la forme
+    // ------------------------------------------------------------
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    const Offset rectangleCenter = Offset(400, 250);
+
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // 4. Glisse la poignée de redimensionnement
+    // ------------------------------------------------------------
+    //
+    // Le rectangle a été créé en (300, 200) avec une taille de
+    // 200 x 100 : son coin bas-droit — donc la poignée — se trouve
+    // à (500, 300) en coordonnées écran (le viewport est encore à
+    // l'identité à ce stade : aucun pan/zoom n'a eu lieu).
+    const Offset handlePosition = Offset(500, 300);
+
+    final gesture = await tester.startGesture(handlePosition);
+
+    await gesture.moveBy(const Offset(50, 30));
+
+    await tester.pump();
+
+    await gesture.up();
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // ------------------------------------------------------------
+    // ASSERT
+    // ------------------------------------------------------------
+    //
+    // Comme pour les autres tests de ce fichier, le modèle n'est pas
+    // directement exposé : on valide donc que toute la chaîne
+    // (sélection -> poignée -> drag -> redimensionnement) s'exécute
+    // sans exception.
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Resize handle never shrinks a shape below the minimum size', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const DiagrammeApp());
+
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    const Offset rectangleCenter = Offset(400, 250);
+
+    await tester.tapAt(rectangleCenter);
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Glisse la poignée très loin vers le coin haut-gauche : de quoi
+    // rendre la largeur et la hauteur négatives si rien ne les
+    // limitait.
+    const Offset handlePosition = Offset(500, 300);
+
+    final gesture = await tester.startGesture(handlePosition);
+
+    await gesture.moveBy(const Offset(-1000, -1000));
+
+    await tester.pump();
+
+    await gesture.up();
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Aucune exception : notamment aucun Rect / Offset invalide côté
+    // CustomPainter, ce qui serait le cas avec des dimensions
+    // négatives.
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -39,12 +39,17 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 
 ## Resize des formes
 
-- [ ] Ajouter une seule poignée de redimensionnement en bas à droite de la forme sélectionnée.
-- [ ] Utiliser le même principe pour les rectangles et les cercles.
-- [ ] Gérer le drag de la poignée pour modifier `width` et `height`.
-- [ ] Définir une taille minimale afin d'éviter les formes trop petites ou les dimensions négatives.
-- [ ] Ajouter un curseur adapté au redimensionnement.
-- [ ] Ajouter des tests widget pour le resize.
+- [x] Ajouter une seule poignée de redimensionnement en bas à droite de la forme sélectionnée
+      (`ShapeResizeHandle`, visible uniquement en mode Sélection hors édition de texte).
+- [x] Utiliser le même principe pour les rectangles et les cercles
+      (même coin de la boîte englobante ; un cercle garde `width == height`).
+- [x] Gérer le drag de la poignée pour modifier `width` et `height`
+      (`DiagramShape.resizeBy`, piloté par `onScaleStart`/`onScaleUpdate` de GridCanvas).
+- [x] Définir une taille minimale afin d'éviter les formes trop petites ou les dimensions négatives
+      (`DiagramShape.minSize`).
+- [x] Ajouter un curseur adapté au redimensionnement (`SystemMouseCursors.resizeUpLeftDownRight`).
+- [x] Ajouter des tests widget pour le resize (`test/widget_test.dart`), plus des tests
+      unitaires pour `DiagramShape.resizeBy` (`test/diagram_shape_test.dart`).
 
 ## Texte multiligne
 
