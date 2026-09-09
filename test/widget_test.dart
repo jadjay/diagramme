@@ -711,6 +711,73 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'Resize handle works for a circle even when the drag starts off-center',
+    (WidgetTester tester) async {
+      // ------------------------------------------------------------
+      // Régression : sur un appareil réel, le doigt/curseur touche
+      // rarement le centre exact de la poignée. Ce test démarre le
+      // drag volontairement décalé du centre de la poignée, à un
+      // point qui se trouve géométriquement HORS du disque du
+      // cercle (le coin de la boîte englobante, où vit la poignée,
+      // est toujours hors du cercle inscrit) : avec l'ancien
+      // mécanisme (hit-test partagé avec ShapeHitTester), ce point
+      // ne déclenchait aucun redimensionnement.
+      // ------------------------------------------------------------
+      await tester.pumpWidget(const DiagrammeApp());
+
+      await tester.tap(find.byTooltip('Cercle'));
+      await tester.pump();
+
+      const Offset circlePosition = Offset(300, 200);
+
+      await tester.tapAt(circlePosition);
+
+      // Le point de sélection ci-dessous (centre du cercle) est à
+      // moins de 100 unités de ce point de création : on laisse donc
+      // largement passer le délai du double-tap (300 ms) pour ne pas
+      // que ce second clic soit interprété comme un double-tap et
+      // ouvre l'éditeur de texte au lieu de simplement sélectionner
+      // la forme.
+      await tester.pump(const Duration(milliseconds: 400));
+
+      await tester.tap(find.byTooltip('Sélection'));
+      await tester.pump();
+
+      // Cercle 120 x 120 créé en (300, 200) : son centre est donc
+      // en (360, 260) et le coin bas-droit de sa boîte englobante
+      // (la poignée) en (420, 320).
+      const Offset circleCenter = Offset(360, 260);
+
+      await tester.tapAt(circleCenter);
+
+      await tester.pump(const Duration(milliseconds: 400));
+
+      // Décalage de 15 unités en x et en y par rapport au centre de
+      // la poignée : toujours dans la nouvelle zone de détection
+      // (44 x 44) mais hors de l'ancien disque de 14 et hors du
+      // cercle lui-même.
+      const Offset nearHandle = Offset(420 + 15, 320 - 15);
+
+      final gesture = await tester.startGesture(nearHandle);
+
+      await gesture.moveBy(const Offset(40, 40));
+
+      await tester.pump();
+
+      await gesture.up();
+
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Comme pour les autres tests de resize de ce fichier, le
+      // modèle n'est pas directement exposé : on valide donc que
+      // toute la chaîne (sélection -> poignée -> drag décalé ->
+      // redimensionnement) s'exécute sans exception, y compris pour
+      // un cercle.
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   /// Crée un rectangle 200 x 100 en (300, 200), repasse en outil
   /// Sélection puis double-tape son centre (400, 250) pour ouvrir
   /// l'éditeur de texte. Factorisé pour les tests multiligne
