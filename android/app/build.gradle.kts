@@ -14,6 +14,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+    // Requis par AGP pour pouvoir utiliser resValue(...) dans les
+    // productFlavors ci-dessous (app_name par flavor).
+    buildFeatures {
+        resValues = true
+    }
+
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "local.jerome.diagramme"

@@ -19,6 +19,13 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 - [x] Rendre `USERDOC.md` accessible depuis l'application via un bouton d'aide.
 - [x] Créer `ROADMAP.md` et formaliser le workflow PR / merge / tag / release.
 
+## Nettoyage (Phase 1 de la roadmap)
+
+- [x] Refaire le `README.md` pour présenter réellement le projet.
+- [x] Supprimer `lib/main.dart_Old`.
+- [x] Supprimer les blocs de formes/connecteurs de test commentés dans `diagram_canvas.dart`.
+- [x] Supprimer les callbacks et `debugPrint` commentés devenus morts dans `diagram_canvas.dart`.
+
 ## Resize des formes
 
 - [ ] Ajouter une seule poignée de redimensionnement en bas à droite de la forme sélectionnée.
