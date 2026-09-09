@@ -27,7 +27,10 @@ Pour chaque PR fonctionnelle :
 
 ## Phase 2 — Refactorisation du cœur
 
-- [ ] Extraire l'état du document hors de `GridCanvas`.
+- [x] Extraire l'état du document hors de `GridCanvas` (`DiagramDocument`
+      dans `lib/models/diagram_document.dart` : formes, connecteurs,
+      sélection, et les mutations qui leur sont propres — création de
+      forme, workflow connecteur, suppression).
 - [ ] Extraire la logique de sélection et de hit-testing.
 - [ ] Extraire la logique pan / zoom / transformation du canevas.
 - [ ] Réduire progressivement la taille de `diagram_canvas.dart`.

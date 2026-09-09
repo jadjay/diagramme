@@ -26,6 +26,13 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 - [x] Supprimer les blocs de formes/connecteurs de test commentés dans `diagram_canvas.dart`.
 - [x] Supprimer les callbacks et `debugPrint` commentés devenus morts dans `diagram_canvas.dart`.
 
+## Refactorisation du cœur (Phase 2 de la roadmap)
+
+- [x] Extraire l'état du document (formes, connecteurs, sélection) hors
+      de `GridCanvas` vers `DiagramDocument`.
+- [ ] Extraire la logique de sélection et de hit-testing.
+- [ ] Extraire la logique pan / zoom / transformation du canevas.
+
 ## Resize des formes
 
 - [ ] Ajouter une seule poignée de redimensionnement en bas à droite de la forme sélectionnée.
