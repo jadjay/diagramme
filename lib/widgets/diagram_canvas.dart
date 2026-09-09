@@ -11,6 +11,7 @@ import 'package:diagramme/painters/diagram_painter.dart';
 
 import 'package:diagramme/widgets/diagram_toolbar.dart';
 import 'package:diagramme/widgets/zoom_indicator.dart';
+import 'package:diagramme/widgets/shape_text_editor.dart';
 
 /// Notre zone de dessin.
 ///
@@ -446,80 +447,27 @@ class _GridCanvasState extends State<GridCanvas> {
           ),
         ),
         if (document.editingShape != null)
-          Positioned(
-            // ----------------------------------------------------------
-            // Position écran de la forme en cours d'édition
-            // ----------------------------------------------------------
-            //
-            // shape.position est en coordonnées MONDE.
-            //
-            // écran = monde * scale + offset
-            left:
-                document.editingShape!.position.dx * viewport.scale +
-                viewport.offset.dx,
-
-            // Centre verticalement le champ dans la forme.
-            top:
-                document.editingShape!.position.dy * viewport.scale +
-                viewport.offset.dy +
-                (document.editingShape!.height * viewport.scale - 48.0) / 2,
-
-            // L'éditeur prend la largeur actuelle de la forme.
-            width: document.editingShape!.width * viewport.scale,
-            height: 48.0,
-            child: TextField(
-              controller: _textController,
-
-              autofocus: true,
-
-              textAlign: TextAlign.center,
-
-              decoration: const InputDecoration(
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 8,
-                ),
-              ),
-
-              // --------------------------------------------------------
-              // Sauvegarde en temps réel
-              // --------------------------------------------------------
-              //
-              // Chaque modification du champ est immédiatement
-              // copiée dans notre modèle.
-              //
-              // Ainsi, si l'utilisateur :
-              //
-              // - tape du texte ;
-              // - clique ailleurs ;
-              // - double-tape une autre forme ;
-              //
-              // le texte n'est jamais perdu.
-              onChanged: (value) {
-                setState(() {
-                  document.editingShape!.text = value;
-                });
-              },
-
-              // --------------------------------------------------------
-              // Validation
-              // --------------------------------------------------------
-              //
-              // Linux :
-              // Entrée valide.
-              //
-              // Android :
-              // le bouton "done" du clavier valide.
-              onSubmitted: (value) {
-                setState(() {
-                  document.editingShape!.text = value;
-                  document.editingShape = null;
-                });
-              },
-            ),
+          ShapeTextEditor(
+            shape: document.editingShape!,
+            viewport: viewport,
+            controller: _textController,
+            // Sauvegarde en temps réel : chaque modification du champ
+            // est immédiatement copiée dans notre modèle, pour que le
+            // texte ne soit jamais perdu si l'utilisateur clique
+            // ailleurs ou double-tape une autre forme.
+            onChanged: (value) {
+              setState(() {
+                document.editingShape!.text = value;
+              });
+            },
+            // Validation : Entrée sur Linux, bouton "done" du clavier
+            // sur Android.
+            onSubmitted: (value) {
+              setState(() {
+                document.editingShape!.text = value;
+                document.editingShape = null;
+              });
+            },
           ),
 
         Positioned(
