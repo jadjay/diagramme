@@ -71,11 +71,11 @@ jobs:
         run: flutter pub get
 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --flavor prod
 
       - name: Rename APK
         run: |
-          cp build/app/outputs/flutter-apk/app-release.apk \
+          cp build/app/outputs/flutter-apk/app-prod-release.apk \
              diagramme-${{ github.ref_name }}-android.apk
 
       - name: Upload Android artifact

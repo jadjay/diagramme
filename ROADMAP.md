@@ -9,10 +9,14 @@ Pour chaque PR fonctionnelle :
 1. créer une branche dédiée ;
 2. marquer dans `TODO.md` la fonctionnalité travaillée avec le tag `[WIP]` ;
 3. développer et tester la fonctionnalité ;
+   - possibilité de générer à la demande un artefact de test (`diagramme-dev`,
+     installable en parallèle de l'app standard) en ajoutant le label
+     `build-dev` sur la PR (voir `.github/workflows/build-dev.yml`) ;
 4. juste avant le merge, retirer `[WIP]` et cocher la tâche avec `[x]` ;
-5. merger la PR dans `main` ;
-6. poser le tag de version sur **le commit de merge** ;
-7. la GitHub Release est générée à partir de ce tag.
+5. merger la PR dans `main` (avec un commit de merge) ;
+6. le tag de version (incrément de patch) est posé automatiquement sur
+   **le commit de merge** par `.github/workflows/auto-tag.yml` ;
+7. la GitHub Release est générée automatiquement à partir de ce tag.
 
 ## Phase 1 — Nettoyage et documentation
 
