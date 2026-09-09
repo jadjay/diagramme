@@ -142,17 +142,6 @@ class _GridCanvasState extends State<GridCanvas> {
     return ShapeHitTester(document.shapes).shapeAt(worldPosition);
   }
 
-  /// Détermine si [screenPosition] tombe sur la poignée de
-  /// redimensionnement de [shape] (voir [ShapeResizeHandle]).
-  ///
-  /// La zone de détection est volontairement un peu plus généreuse que
-  /// le disque affiché, pour rester facile à attraper au doigt.
-  bool _isOverResizeHandle(DiagramShape shape, Offset screenPosition) {
-    final Offset center = ShapeResizeHandle.screenCenter(shape, viewport);
-
-    return (screenPosition - center).distance <= ShapeResizeHandle.size;
-  }
-
   /// Outil de création actuellement actif.
   ///
   /// null signifie :
@@ -189,6 +178,11 @@ class _GridCanvasState extends State<GridCanvas> {
 
   @override
   Widget build(BuildContext context) {
+    // Capturée une seule fois par frame : les callbacks de
+    // ShapeResizeHandle ci-dessous manipulent toujours CETTE forme,
+    // même si `document.selectedShape` venait à changer entre-temps.
+    final DiagramShape? selectedForResize = document.selectedShape;
+
     /// GestureDetector permet d'intercepter les gestes utilisateur :
     /// clic, glisser, double clic, etc.
     return Stack(
@@ -297,25 +291,14 @@ class _GridCanvasState extends State<GridCanvas> {
                     // OUTIL SÉLECTION
                     // --------------------------------------------------------
                     case ToolType.select:
-                      // Un clic sur la poignée de redimensionnement de
-                      // la forme déjà sélectionnée ne doit PAS modifier
-                      // la sélection : c'est onScaleStart/onScaleUpdate
-                      // qui prendra le relais pour redimensionner.
-                      //
-                      // Sans cette vérification, ce onTapDown (qui se
-                      // déclenche dès l'appui, avant même de savoir si
-                      // le geste sera un tap ou un drag) désélectionnerait
-                      // la forme : le point exact du coin bas-droit est
-                      // en dehors de Rect.contains(), qui exclut sa
-                      // propre bordure.
-                      final DiagramShape? currentlySelected =
-                          document.selectedShape;
-
-                      if (currentlySelected != null &&
-                          _isOverResizeHandle(
-                            currentlySelected,
-                            details.localPosition,
-                          )) {
+                      // Si cet appui vient de démarrer un
+                      // redimensionnement (ShapeResizeHandle a son
+                      // propre Listener, indépendant de ce
+                      // GestureDetector, qui s'exécute AVANT lui car
+                      // la poignée est au-dessus dans le Stack), on ne
+                      // touche pas à la sélection : elle doit rester
+                      // celle de la forme en cours de redimensionnement.
+                      if (document.resizingShape != null) {
                         break;
                       }
 
@@ -374,28 +357,22 @@ class _GridCanvasState extends State<GridCanvas> {
                 //
                 // On mémorise donc l'état actuel du canevas afin que tous
                 // les calculs suivants partent d'une référence stable.
+                //
+                // Le redimensionnement (poignée) est géré entièrement par
+                // ShapeResizeHandle via son propre Listener, indépendant
+                // de ce GestureDetector — voir ce widget pour le détail.
+                // Si un redimensionnement vient de démarrer sur ce même
+                // appui (son Listener s'exécute avant, la poignée étant
+                // au-dessus dans le Stack), on n'interfère pas.
+                if (document.resizingShape != null) {
+                  return;
+                }
 
                 viewport.beginGesture(details.localFocalPoint);
 
                 _lastGestureFocalPoint = details.localFocalPoint;
 
-                // Le geste démarre-t-il sur la poignée de redimensionnement
-                // de la forme sélectionnée ? Uniquement pertinent en mode
-                // Sélection, et seulement si une forme est déjà sélectionnée.
-                final DiagramShape? selected = document.selectedShape;
-
-                if (activeTool == ToolType.select &&
-                    selected != null &&
-                    _isOverResizeHandle(selected, details.localFocalPoint)) {
-                  setState(() {
-                    document.resizingShape = selected;
-                    document.draggedShape = null;
-                  });
-
-                  return;
-                }
-
-                // Sinon, on regarde si le geste commence sur une forme.
+                // On regarde si le geste commence sur une forme.
                 //
                 // Si oui, un déplacement à UN doigt servira à déplacer
                 // cette forme.
@@ -404,7 +381,6 @@ class _GridCanvasState extends State<GridCanvas> {
                 );
 
                 setState(() {
-                  document.resizingShape = null;
                   document.draggedShape = shape;
 
                   if (shape != null) {
@@ -414,6 +390,12 @@ class _GridCanvasState extends State<GridCanvas> {
               },
 
               onScaleUpdate: (details) {
+                // Idem : pendant un redimensionnement, ShapeResizeHandle
+                // gère seul le drag via son propre Listener.
+                if (document.resizingShape != null) {
+                  return;
+                }
+
                 setState(() {
                   // ----------------------------------------------------------
                   // CAS 1 : deux doigts ou plus
@@ -431,24 +413,11 @@ class _GridCanvasState extends State<GridCanvas> {
                     // 0.8 = -20 %
                     viewport.applyPinch(details.localFocalPoint, details.scale);
 
-                    // Pendant un pinch, on ne déplace ni ne redimensionne
-                    // jamais une forme.
+                    // Pendant un pinch, on ne déplace jamais une forme.
                     document.draggedShape = null;
-                    document.resizingShape = null;
                   }
                   // ----------------------------------------------------------
-                  // CAS 2 : un seul doigt sur la poignée de redimensionnement
-                  // ----------------------------------------------------------
-                  else if (document.resizingShape != null) {
-                    final Offset screenDelta =
-                        details.localFocalPoint - _lastGestureFocalPoint;
-
-                    final Offset worldDelta = screenDelta / viewport.scale;
-
-                    document.resizingShape!.resizeBy(worldDelta);
-                  }
-                  // ----------------------------------------------------------
-                  // CAS 3 : un seul doigt sur une forme
+                  // CAS 2 : un seul doigt sur une forme
                   // ----------------------------------------------------------
                   else if (document.draggedShape != null) {
                     // Calcul du déplacement depuis la dernière frame.
@@ -464,7 +433,7 @@ class _GridCanvasState extends State<GridCanvas> {
                     document.draggedShape!.position += worldDelta;
                   }
                   // ----------------------------------------------------------
-                  // CAS 4 : un seul doigt dans le vide (le plus courant)
+                  // CAS 3 : un seul doigt dans le vide (le plus courant)
                   // ----------------------------------------------------------
                   else {
                     // Un doigt sur le fond = déplacement du canevas.
@@ -540,11 +509,29 @@ class _GridCanvasState extends State<GridCanvas> {
         // pour la forme sélectionnée, et pas pendant l'édition de texte
         // (le TextField occupe déjà cet espace).
         if (activeTool == ToolType.select &&
-            document.selectedShape != null &&
+            selectedForResize != null &&
             document.editingShape == null)
           ShapeResizeHandle(
-            shape: document.selectedShape!,
+            shape: selectedForResize,
             viewport: viewport,
+            onResizeStart: () {
+              setState(() {
+                document.resizingShape = selectedForResize;
+                document.draggedShape = null;
+              });
+            },
+            onResizeUpdate: (worldDelta) {
+              setState(() {
+                selectedForResize.resizeBy(worldDelta);
+              });
+            },
+            onResizeEnd: () {
+              setState(() {
+                if (document.resizingShape?.id == selectedForResize.id) {
+                  document.resizingShape = null;
+                }
+              });
+            },
           ),
 
         Positioned(

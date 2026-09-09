@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:diagramme/main.dart';
 import 'package:diagramme/widgets/diagram_canvas.dart';
+import 'package:diagramme/painters/diagram_painter.dart';
+import 'package:diagramme/models/diagram_shape.dart';
 
 void main() {
   testWidgets('Application starts and displays the diagram canvas', (
@@ -710,6 +712,75 @@ void main() {
     // négatives.
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'Resize handle works for a circle even when the drag starts off-center',
+    (WidgetTester tester) async {
+      // ------------------------------------------------------------
+      // Régression : sur un appareil réel, le doigt/curseur touche
+      // rarement le centre exact de la poignée. Ce test démarre le
+      // drag volontairement décalé du centre de la poignée, à un
+      // point qui se trouve géométriquement HORS du disque du
+      // cercle (le coin de la boîte englobante, où vit la poignée,
+      // est toujours hors du cercle inscrit) : avec l'ancien
+      // mécanisme (hit-test partagé avec ShapeHitTester), ce point
+      // ne déclenchait aucun redimensionnement.
+      // ------------------------------------------------------------
+      await tester.pumpWidget(const DiagrammeApp());
+
+      await tester.tap(find.byTooltip('Cercle'));
+      await tester.pump();
+
+      const Offset circlePosition = Offset(300, 200);
+
+      await tester.tapAt(circlePosition);
+
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byTooltip('Sélection'));
+      await tester.pump();
+
+      // Cercle 120 x 120 créé en (300, 200) : son centre est donc
+      // en (360, 260) et le coin bas-droit de sa boîte englobante
+      // (la poignée) en (420, 320).
+      const Offset circleCenter = Offset(360, 260);
+
+      await tester.tapAt(circleCenter);
+
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Décalage de 15 unités en x et en y par rapport au centre de
+      // la poignée : toujours dans la nouvelle zone de détection
+      // (44 x 44) mais hors de l'ancien disque de 14 et hors du
+      // cercle lui-même.
+      const Offset nearHandle = Offset(420 + 15, 320 - 15);
+
+      final gesture = await tester.startGesture(nearHandle);
+
+      await gesture.moveBy(const Offset(40, 40));
+
+      await tester.pump();
+
+      await gesture.up();
+
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(tester.takeException(), isNull);
+
+      final DiagramPainter painter = tester
+          .widgetList<CustomPaint>(find.byType(CustomPaint))
+          .map((customPaint) => customPaint.painter)
+          .whereType<DiagramPainter>()
+          .first;
+
+      final DiagramShape circle = painter.shapes.single;
+
+      // Le cercle a bien grandi, et reste un cercle (largeur ==
+      // hauteur).
+      expect(circle.width, greaterThan(120));
+      expect(circle.height, equals(circle.width));
+    },
+  );
 
   /// Crée un rectangle 200 x 100 en (300, 200), repasse en outil
   /// Sélection puis double-tape son centre (400, 250) pour ouvrir
