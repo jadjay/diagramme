@@ -12,6 +12,7 @@ import 'package:diagramme/painters/diagram_painter.dart';
 import 'package:diagramme/widgets/diagram_toolbar.dart';
 import 'package:diagramme/widgets/zoom_indicator.dart';
 import 'package:diagramme/widgets/shape_text_editor.dart';
+import 'package:diagramme/widgets/shape_resize_handle.dart';
 
 /// Notre zone de dessin.
 ///
@@ -139,6 +140,17 @@ class _GridCanvasState extends State<GridCanvas> {
     );
 
     return ShapeHitTester(document.shapes).shapeAt(worldPosition);
+  }
+
+  /// Détermine si [screenPosition] tombe sur la poignée de
+  /// redimensionnement de [shape] (voir [ShapeResizeHandle]).
+  ///
+  /// La zone de détection est volontairement un peu plus généreuse que
+  /// le disque affiché, pour rester facile à attraper au doigt.
+  bool _isOverResizeHandle(DiagramShape shape, Offset screenPosition) {
+    final Offset center = ShapeResizeHandle.screenCenter(shape, viewport);
+
+    return (screenPosition - center).distance <= ShapeResizeHandle.size;
   }
 
   /// Outil de création actuellement actif.
@@ -285,6 +297,28 @@ class _GridCanvasState extends State<GridCanvas> {
                     // OUTIL SÉLECTION
                     // --------------------------------------------------------
                     case ToolType.select:
+                      // Un clic sur la poignée de redimensionnement de
+                      // la forme déjà sélectionnée ne doit PAS modifier
+                      // la sélection : c'est onScaleStart/onScaleUpdate
+                      // qui prendra le relais pour redimensionner.
+                      //
+                      // Sans cette vérification, ce onTapDown (qui se
+                      // déclenche dès l'appui, avant même de savoir si
+                      // le geste sera un tap ou un drag) désélectionnerait
+                      // la forme : le point exact du coin bas-droit est
+                      // en dehors de Rect.contains(), qui exclut sa
+                      // propre bordure.
+                      final DiagramShape? currentlySelected =
+                          document.selectedShape;
+
+                      if (currentlySelected != null &&
+                          _isOverResizeHandle(
+                            currentlySelected,
+                            details.localPosition,
+                          )) {
+                        break;
+                      }
+
                       // Recherche la forme située sous le clic.
                       //
                       // La méthode s'occupe déjà :
@@ -345,7 +379,23 @@ class _GridCanvasState extends State<GridCanvas> {
 
                 _lastGestureFocalPoint = details.localFocalPoint;
 
-                // On regarde également si le geste commence sur une forme.
+                // Le geste démarre-t-il sur la poignée de redimensionnement
+                // de la forme sélectionnée ? Uniquement pertinent en mode
+                // Sélection, et seulement si une forme est déjà sélectionnée.
+                final DiagramShape? selected = document.selectedShape;
+
+                if (activeTool == ToolType.select &&
+                    selected != null &&
+                    _isOverResizeHandle(selected, details.localFocalPoint)) {
+                  setState(() {
+                    document.resizingShape = selected;
+                    document.draggedShape = null;
+                  });
+
+                  return;
+                }
+
+                // Sinon, on regarde si le geste commence sur une forme.
                 //
                 // Si oui, un déplacement à UN doigt servira à déplacer
                 // cette forme.
@@ -354,6 +404,7 @@ class _GridCanvasState extends State<GridCanvas> {
                 );
 
                 setState(() {
+                  document.resizingShape = null;
                   document.draggedShape = shape;
 
                   if (shape != null) {
@@ -380,11 +431,24 @@ class _GridCanvasState extends State<GridCanvas> {
                     // 0.8 = -20 %
                     viewport.applyPinch(details.localFocalPoint, details.scale);
 
-                    // Pendant un pinch, on ne déplace jamais une forme.
+                    // Pendant un pinch, on ne déplace ni ne redimensionne
+                    // jamais une forme.
                     document.draggedShape = null;
+                    document.resizingShape = null;
                   }
                   // ----------------------------------------------------------
-                  // CAS 2 : un seul doigt sur une forme
+                  // CAS 2 : un seul doigt sur la poignée de redimensionnement
+                  // ----------------------------------------------------------
+                  else if (document.resizingShape != null) {
+                    final Offset screenDelta =
+                        details.localFocalPoint - _lastGestureFocalPoint;
+
+                    final Offset worldDelta = screenDelta / viewport.scale;
+
+                    document.resizingShape!.resizeBy(worldDelta);
+                  }
+                  // ----------------------------------------------------------
+                  // CAS 3 : un seul doigt sur une forme
                   // ----------------------------------------------------------
                   else if (document.draggedShape != null) {
                     // Calcul du déplacement depuis la dernière frame.
@@ -400,7 +464,7 @@ class _GridCanvasState extends State<GridCanvas> {
                     document.draggedShape!.position += worldDelta;
                   }
                   // ----------------------------------------------------------
-                  // CAS 3 : un seul doigt dans le vide
+                  // CAS 4 : un seul doigt dans le vide (le plus courant)
                   // ----------------------------------------------------------
                   else {
                     // Un doigt sur le fond = déplacement du canevas.
@@ -419,6 +483,7 @@ class _GridCanvasState extends State<GridCanvas> {
               onScaleEnd: (details) {
                 // Le geste est terminé.
                 document.draggedShape = null;
+                document.resizingShape = null;
               },
 
               /// SizedBox.expand force son enfant
@@ -468,6 +533,17 @@ class _GridCanvasState extends State<GridCanvas> {
                 document.editingShape = null;
               });
             },
+          ),
+
+        // Poignée de redimensionnement : uniquement en mode Sélection,
+        // pour la forme sélectionnée, et pas pendant l'édition de texte
+        // (le TextField occupe déjà cet espace).
+        if (activeTool == ToolType.select &&
+            document.selectedShape != null &&
+            document.editingShape == null)
+          ShapeResizeHandle(
+            shape: document.selectedShape!,
+            viewport: viewport,
           ),
 
         Positioned(

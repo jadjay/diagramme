@@ -32,6 +32,14 @@ Une forme ne peut pas être connectée à elle-même.
 
 Avec l'outil **Sélection**, faites glisser une forme pour la déplacer.
 
+## Redimensionner une forme
+
+Sélectionnez une forme : une petite poignée apparaît à son coin bas-droit. Faites-la glisser pour modifier la taille de la forme.
+
+Pour un cercle, la largeur et la hauteur restent toujours égales, afin qu'il reste bien rond.
+
+Une forme ne peut pas devenir plus petite qu'une taille minimale.
+
 ## Déplacer le canevas
 
 Faites glisser une zone vide du canevas.
@@ -69,7 +77,6 @@ Les connecteurs liés à une forme supprimée sont automatiquement supprimés.
 
 Les évolutions prévues incluent notamment :
 
-- redimensionnement des formes ;
 - texte multiligne ;
 - sauvegarde et chargement de documents ;
 - undo / redo ;

@@ -44,7 +44,8 @@ Pour chaque PR fonctionnelle :
 
 ## Phase 3 — Édition avancée
 
-- [ ] Redimensionnement des formes.
+- [x] Redimensionnement des formes (poignée unique en bas à droite,
+      voir `TODO.md` pour le détail).
 - [ ] Texte multiligne.
 - [ ] Amélioration des couleurs et styles.
 - [ ] Copier / coller.

@@ -95,4 +95,39 @@ class DiagramShape {
 
   /// Couleur du contour de la forme.
   Color strokeColor;
+
+  /// Taille minimale (largeur et hauteur) autorisée pour une forme.
+  ///
+  /// Empêche [resizeBy] de produire des formes trop petites, ou des
+  /// dimensions négatives ou nulles.
+  static const double minSize = 20.0;
+
+  /// Redimensionne la forme en appliquant [worldDelta] (coordonnées
+  /// MONDE) à ses dimensions, en gardant [position] fixe — c'est-à-dire
+  /// en tirant depuis le coin BAS-DROIT de sa boîte englobante.
+  ///
+  /// Pour un rectangle, largeur et hauteur évoluent indépendamment.
+  ///
+  /// Pour un cercle, width == height doit rester vrai pour que la forme
+  /// reste un vrai cercle (voir DiagramPainter.drawOval et
+  /// ShapeHitTester, qui supposent tous deux width == height) : on
+  /// applique donc la moyenne des deux axes du delta aux deux
+  /// dimensions à la fois.
+  ///
+  /// Dans tous les cas, [minSize] empêche la forme de devenir trop
+  /// petite ou d'avoir des dimensions négatives.
+  void resizeBy(Offset worldDelta) {
+    switch (type) {
+      case ShapeType.rectangle:
+        width = (width + worldDelta.dx).clamp(minSize, double.infinity);
+        height = (height + worldDelta.dy).clamp(minSize, double.infinity);
+
+      case ShapeType.circle:
+        final double delta = (worldDelta.dx + worldDelta.dy) / 2;
+        final double newSize = (width + delta).clamp(minSize, double.infinity);
+
+        width = newSize;
+        height = newSize;
+    }
+  }
 }

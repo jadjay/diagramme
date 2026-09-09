@@ -50,6 +50,11 @@ class DiagramDocument {
   /// draggedShape  = "je suis EN TRAIN de déplacer cette forme".
   DiagramShape? draggedShape;
 
+  /// Forme actuellement en cours de redimensionnement (drag de sa
+  /// poignée). Mutuellement exclusif avec [draggedShape] : un geste
+  /// donné redimensionne OU déplace, jamais les deux.
+  DiagramShape? resizingShape;
+
   /// Ajoute un rectangle à [worldPosition] (coordonnées du monde) et le
   /// retourne.
   DiagramShape addRectangle(Offset worldPosition) {
@@ -125,8 +130,8 @@ class DiagramDocument {
   ///
   /// Cette suppression nettoie aussi :
   /// - les connecteurs qui référencent cette forme ;
-  /// - editingShape / connectorStartShape / draggedShape s'ils
-  ///   pointaient vers la forme supprimée.
+  /// - editingShape / connectorStartShape / draggedShape / resizingShape
+  ///   s'ils pointaient vers la forme supprimée.
   ///
   /// Si aucune forme n'est sélectionnée, ne fait rien.
   void deleteSelectedShape() {
@@ -157,6 +162,10 @@ class DiagramDocument {
 
     if (draggedShape?.id == shape.id) {
       draggedShape = null;
+    }
+
+    if (resizingShape?.id == shape.id) {
+      resizingShape = null;
     }
   }
 }
