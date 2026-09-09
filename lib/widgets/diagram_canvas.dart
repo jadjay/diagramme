@@ -3,8 +3,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import 'package:diagramme/models/diagram_shape.dart';
-import 'package:diagramme/models/diagram_connector.dart';
 import 'package:diagramme/models/canvas_transform.dart';
+import 'package:diagramme/models/diagram_document.dart';
 
 import 'package:diagramme/painters/diagram_painter.dart';
 
@@ -36,6 +36,14 @@ class _GridCanvasState extends State<GridCanvas> {
     super.dispose();
   }
 
+  /// Le contenu du diagramme (formes, connecteurs, sélection).
+  ///
+  /// GridCanvas ne stocke plus lui-même ces données : il se contente
+  /// de traduire les gestes utilisateur (position écran, outil actif)
+  /// en appels aux méthodes de [DiagramDocument], et de redessiner
+  /// après chaque appel via setState().
+  final DiagramDocument document = DiagramDocument();
+
   /// Crée un rectangle à la position écran donnée.
   ///
   /// La souris nous fournit une position dans les coordonnées
@@ -46,70 +54,33 @@ class _GridCanvasState extends State<GridCanvas> {
   /// On effectue donc ici la conversion :
   ///
   ///   monde = (écran - offset) / scale
-  ///
-  /// Toute la logique spécifique à la création d'un rectangle
-  /// est maintenant isolée dans cette méthode.
   void _createRectangle(Offset screenPosition) {
     final transform = CanvasTransform(offset: offset, scale: scale);
 
     final Offset worldPosition = transform.screenToWorld(screenPosition);
 
-    final String id = 'shape-${_nextShapeId++}';
-
-    shapes.add(
-      DiagramShape(
-        id: id,
-        type: ShapeType.rectangle,
-        position: worldPosition,
-        width: 200,
-        height: 100,
-      ),
-    );
+    document.addRectangle(worldPosition);
   }
 
   /// Crée un cercle à la position écran donnée.
   ///
   /// Comme pour le rectangle, la position reçue appartient
-  /// au système de coordonnées de l'écran.
-  ///
-  /// On la convertit donc en coordonnées du monde avant
-  /// de créer notre objet DiagramShape.
-  ///
-  /// Pour l'instant, un cercle est représenté par une boîte
-  /// englobante carrée de 120 × 120 unités.
-  ///
-  /// Comme width == height, GridPainter dessinera un vrai cercle
-  /// avec drawOval().
+  /// au système de coordonnées de l'écran ; on la convertit donc
+  /// en coordonnées du monde avant de créer la forme.
   void _createCircle(Offset screenPosition) {
     final transform = CanvasTransform(offset: offset, scale: scale);
 
     final Offset worldPosition = transform.screenToWorld(screenPosition);
-    final String id = 'shape-${_nextShapeId++}';
 
-    shapes.add(
-      DiagramShape(
-        id: id,
-        type: ShapeType.circle,
-        position: worldPosition,
-        width: 120,
-        height: 120,
-      ),
-    );
+    document.addCircle(worldPosition);
   }
 
   /// Gère un clic utilisateur lorsque l'outil Connecteur est actif.
   ///
-  /// Le workflow est volontairement simple :
-  ///
-  /// 1. Premier clic sur une forme
-  ///    -> on mémorise la forme de départ.
-  ///
-  /// 2. Deuxième clic sur une autre forme
-  ///    -> on crée le connecteur.
-  ///
-  /// 3. On réinitialise l'état temporaire.
+  /// Le hit-testing (trouver la forme sous le clic) reste ici, côté
+  /// écran ; la logique de workflow (première/deuxième extrémité,
+  /// création du connecteur) est déléguée au document.
   void _handleConnectorClick(Offset screenPosition) {
-    // Cherche la forme située sous le clic.
     final DiagramShape? clickedShape = _shapeAtScreenPosition(screenPosition);
 
     // Clic dans le vide :
@@ -118,41 +89,8 @@ class _GridCanvasState extends State<GridCanvas> {
       return;
     }
 
-    // ------------------------------------------------------------
-    // PREMIER CLIC
-    // ------------------------------------------------------------
-    if (connectorStartShape == null) {
-      connectorStartShape = clickedShape;
-      selectedShape = clickedShape;
-
-      return;
-    }
-
-    // ------------------------------------------------------------
-    // DEUXIÈME CLIC
-    // ------------------------------------------------------------
-
-    // Pour l'instant, on interdit de relier une forme à elle-même.
-    if (connectorStartShape!.id == clickedShape.id) {
-      return;
-    }
-
-    connectors.add(
-      DiagramConnector(
-        id: 'connector-${connectors.length + 1}',
-        fromShapeId: connectorStartShape!.id,
-        toShapeId: clickedShape.id,
-      ),
-    );
-
-    // Le connecteur est terminé.
-    connectorStartShape = null;
-
-    // La deuxième forme devient la sélection courante.
-    selectedShape = clickedShape;
+    document.handleConnectorTarget(clickedShape);
   }
-
-  int _nextShapeId = 1;
 
   /// Décalage actuel du canevas.
   ///
@@ -172,111 +110,29 @@ class _GridCanvasState extends State<GridCanvas> {
   /// 0.5 = 50 %
   double scale = 1.0;
 
-  /// Le canevas démarre réellement vide.
-  /// Les formes seront ajoutées par l'utilisateur.
-  final List<DiagramShape> shapes = [];
-
-  /// Tous les connecteurs présents dans le diagramme.
-  final List<DiagramConnector> connectors = [];
-
-  /// Première forme choisie lors de la création d'un connecteur.
-  ///
-  /// null = aucune première extrémité sélectionnée.
-  ///
-  /// Workflow :
-  /// 1. outil connector actif
-  /// 2. clic sur forme A -> connectorStartShape = A
-  /// 3. clic sur forme B -> création du connecteur
-  /// 4. connectorStartShape redevient null
-  DiagramShape? connectorStartShape;
-
-  /// Forme actuellement sélectionnée.
-  ///
-  /// null signifie qu'aucune forme n'est sélectionnée.
-  ///
-  /// On stocke pour l'instant directement une référence vers
-  /// l'objet DiagramShape concerné.
-  ///
-  /// Plus tard, on pourra éventuellement ne stocker que son ID.
-  DiagramShape? selectedShape;
-
-  /// Forme actuellement en cours d'édition de texte.
-  ///
-  /// null = aucune édition en cours.
-  ///
-  /// Cette variable servira ensuite à afficher un TextField
-  /// superposé au-dessus de la forme.
-  DiagramShape? editingShape;
-
   final TextEditingController _textController = TextEditingController();
 
   final FocusNode _canvasFocusNode = FocusNode();
 
   /// Supprime la forme actuellement sélectionnée.
   ///
-  /// Cette suppression doit aussi nettoyer les connecteurs
-  /// qui référencent cette forme.
-  ///
-  /// Exemple :
-  ///
-  ///   A -------- B
-  ///
-  /// Si B est supprimé, le connecteur A -> B doit disparaître aussi.
-  ///
-  /// Si aucune forme n'est sélectionnée, la méthode ne fait rien.
+  /// La suppression elle-même (formes, connecteurs, état temporaire)
+  /// est déléguée au document ; cette méthode ne gère que la
+  /// conséquence côté UI : vider le champ de texte si la forme
+  /// supprimée était en cours d'édition.
   void _deleteSelectedShape() {
-    // On copie la référence actuelle dans une variable locale.
-    //
-    // Cela évite de manipuler selectedShape plusieurs fois
-    // alors qu'on va justement le remettre à null ensuite.
-    final DiagramShape? shape = selectedShape;
+    final DiagramShape? shape = document.selectedShape;
 
-    // Pas de sélection = rien à supprimer.
     if (shape == null) {
       return;
     }
 
-    // ------------------------------------------------------------
-    // 1. Supprimer les connecteurs liés à cette forme
-    // ------------------------------------------------------------
-    //
-    // Un connecteur doit disparaître si la forme supprimée est :
-    //
-    // - son point de départ ;
-    // - OU son point d'arrivée.
-    connectors.removeWhere(
-      (connector) =>
-          connector.fromShapeId == shape.id || connector.toShapeId == shape.id,
-    );
+    final bool wasEditingSelection = document.editingShape?.id == shape.id;
 
-    // ------------------------------------------------------------
-    // 2. Supprimer la forme
-    // ------------------------------------------------------------
-    shapes.removeWhere((candidate) => candidate.id == shape.id);
+    document.deleteSelectedShape();
 
-    // ------------------------------------------------------------
-    // 3. Nettoyer l'état temporaire
-    // ------------------------------------------------------------
-
-    // La forme n'existe plus : elle ne peut plus être sélectionnée.
-    selectedShape = null;
-
-    // Si elle était en cours d'édition, on ferme l'éditeur.
-    if (editingShape?.id == shape.id) {
-      editingShape = null;
+    if (wasEditingSelection) {
       _textController.clear();
-    }
-
-    // Si elle était la première extrémité d'un connecteur
-    // en cours de création, on abandonne ce connecteur.
-    if (connectorStartShape?.id == shape.id) {
-      connectorStartShape = null;
-    }
-
-    // Par sécurité : aucune forme supprimée ne doit rester
-    // considérée comme "en cours de déplacement".
-    if (draggedShape?.id == shape.id) {
-      draggedShape = null;
     }
   }
 
@@ -309,7 +165,7 @@ class _GridCanvasState extends State<GridCanvas> {
     // est visuellement au-dessus des autres.
     //
     // Il est donc logique que le clic sélectionne celle du dessus.
-    for (final shape in shapes.reversed) {
+    for (final shape in document.shapes.reversed) {
       // ------------------------------------------------------------
       // Hit-testing
       // ------------------------------------------------------------
@@ -396,17 +252,6 @@ class _GridCanvasState extends State<GridCanvas> {
 
     return null;
   }
-
-  /// Forme actuellement en cours de déplacement.
-  ///
-  /// Attention à la différence avec selectedShape :
-  ///
-  /// selectedShape = "cette forme est sélectionnée"
-  /// draggedShape  = "je suis EN TRAIN de déplacer cette forme"
-  ///
-  /// Si draggedShape == null pendant un drag,
-  /// alors le drag sert à déplacer le canevas.
-  DiagramShape? draggedShape;
 
   /// Outil de création actuellement actif.
   ///
@@ -526,7 +371,7 @@ class _GridCanvasState extends State<GridCanvas> {
               //
               // Backspace doit donc supprimer une lettre,
               // pas la forme entière.
-              if (editingShape != null) {
+              if (document.editingShape != null) {
                 return;
               }
 
@@ -575,10 +420,10 @@ class _GridCanvasState extends State<GridCanvas> {
 
                 setState(() {
                   // On sélectionne également la forme.
-                  selectedShape = shape;
+                  document.selectedShape = shape;
 
                   // Et on mémorise qu'elle doit être éditée.
-                  editingShape = shape;
+                  document.editingShape = shape;
                 });
               },
 
@@ -622,7 +467,7 @@ class _GridCanvasState extends State<GridCanvas> {
 
                       // null signifie simplement que l'utilisateur
                       // a cliqué dans le vide.
-                      selectedShape = shape;
+                      document.selectedShape = shape;
 
                       break;
 
@@ -682,10 +527,10 @@ class _GridCanvasState extends State<GridCanvas> {
                 );
 
                 setState(() {
-                  draggedShape = shape;
+                  document.draggedShape = shape;
 
                   if (shape != null) {
-                    selectedShape = shape;
+                    document.selectedShape = shape;
                   }
                 });
               },
@@ -740,12 +585,12 @@ class _GridCanvasState extends State<GridCanvas> {
                     scale = newScale;
 
                     // Pendant un pinch, on ne déplace jamais une forme.
-                    draggedShape = null;
+                    document.draggedShape = null;
                   }
                   // ----------------------------------------------------------
                   // CAS 2 : un seul doigt sur une forme
                   // ----------------------------------------------------------
-                  else if (draggedShape != null) {
+                  else if (document.draggedShape != null) {
                     // Calcul du déplacement depuis la dernière frame.
                     final Offset screenDelta =
                         details.localFocalPoint - _lastGestureFocalPoint;
@@ -756,7 +601,7 @@ class _GridCanvasState extends State<GridCanvas> {
                     // 10 pixels écran = 5 unités monde.
                     final Offset worldDelta = screenDelta / scale;
 
-                    draggedShape!.position += worldDelta;
+                    document.draggedShape!.position += worldDelta;
                   }
                   // ----------------------------------------------------------
                   // CAS 3 : un seul doigt dans le vide
@@ -777,7 +622,7 @@ class _GridCanvasState extends State<GridCanvas> {
 
               onScaleEnd: (details) {
                 // Le geste est terminé.
-                draggedShape = null;
+                document.draggedShape = null;
               },
 
               /// SizedBox.expand force son enfant
@@ -796,16 +641,16 @@ class _GridCanvasState extends State<GridCanvas> {
                   painter: DiagramPainter(
                     offset: offset,
                     scale: scale,
-                    shapes: shapes,
-                    connectors: connectors,
-                    selectedShape: selectedShape,
+                    shapes: document.shapes,
+                    connectors: document.connectors,
+                    selectedShape: document.selectedShape,
                   ),
                 ),
               ),
             ),
           ),
         ),
-        if (editingShape != null)
+        if (document.editingShape != null)
           Positioned(
             // ----------------------------------------------------------
             // Position écran de la forme en cours d'édition
@@ -814,16 +659,16 @@ class _GridCanvasState extends State<GridCanvas> {
             // shape.position est en coordonnées MONDE.
             //
             // écran = monde * scale + offset
-            left: editingShape!.position.dx * scale + offset.dx,
+            left: document.editingShape!.position.dx * scale + offset.dx,
 
             // Centre verticalement le champ dans la forme.
             top:
-                editingShape!.position.dy * scale +
+                document.editingShape!.position.dy * scale +
                 offset.dy +
-                (editingShape!.height * scale - 48.0) / 2,
+                (document.editingShape!.height * scale - 48.0) / 2,
 
             // L'éditeur prend la largeur actuelle de la forme.
-            width: editingShape!.width * scale,
+            width: document.editingShape!.width * scale,
             height: 48.0,
             child: TextField(
               controller: _textController,
@@ -858,7 +703,7 @@ class _GridCanvasState extends State<GridCanvas> {
               // le texte n'est jamais perdu.
               onChanged: (value) {
                 setState(() {
-                  editingShape!.text = value;
+                  document.editingShape!.text = value;
                 });
               },
 
@@ -873,8 +718,8 @@ class _GridCanvasState extends State<GridCanvas> {
               // le bouton "done" du clavier valide.
               onSubmitted: (value) {
                 setState(() {
-                  editingShape!.text = value;
-                  editingShape = null;
+                  document.editingShape!.text = value;
+                  document.editingShape = null;
                 });
               },
             ),
@@ -894,11 +739,11 @@ class _GridCanvasState extends State<GridCanvas> {
 
                 // Si on quitte ou réactive le mode connecteur,
                 // on repart sans première extrémité mémorisée.
-                connectorStartShape = null;
+                document.connectorStartShape = null;
               });
             },
             onColorSelected: (color) {
-              final DiagramShape? shape = selectedShape;
+              final DiagramShape? shape = document.selectedShape;
 
               if (shape == null) {
                 return;
@@ -909,7 +754,7 @@ class _GridCanvasState extends State<GridCanvas> {
               });
             },
             onStrokeColorSelected: (color) {
-              final DiagramShape? shape = selectedShape;
+              final DiagramShape? shape = document.selectedShape;
 
               if (shape == null) {
                 return;
