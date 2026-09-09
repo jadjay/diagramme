@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Fond de l'adaptive icon pour le flavor dev : surcharge
+         values/colors.xml (flavor prod) pour ce build uniquement. -->
+    <color name="ic_launcher_background">#8C2F2A</color>
+</resources>
