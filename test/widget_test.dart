@@ -710,4 +710,154 @@ void main() {
     // négatives.
     expect(tester.takeException(), isNull);
   });
+
+  /// Crée un rectangle 200 x 100 en (300, 200), repasse en outil
+  /// Sélection puis double-tape son centre (400, 250) pour ouvrir
+  /// l'éditeur de texte. Factorisé pour les tests multiligne
+  /// ci-dessous, qui partagent tous cette même mise en place.
+  Future<void> openTextEditorOnNewRectangle(WidgetTester tester) async {
+    await tester.pumpWidget(const DiagrammeApp());
+
+    await tester.tap(find.byTooltip('Rectangle'));
+    await tester.pump();
+
+    const Offset rectanglePosition = Offset(300, 200);
+
+    await tester.tapAt(rectanglePosition);
+
+    await tester.pump(const Duration(milliseconds: 400));
+
+    await tester.tap(find.byTooltip('Sélection'));
+    await tester.pump();
+
+    const Offset rectangleCenter = Offset(400, 250);
+
+    await tester.tapAt(rectangleCenter);
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tapAt(rectangleCenter);
+    await tester.pump();
+
+    expect(find.byType(TextField), findsOneWidget);
+  }
+
+  testWidgets('Pressing Enter inserts a newline instead of validating', (
+    WidgetTester tester,
+  ) async {
+    await openTextEditorOnNewRectangle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Ligne 1');
+    await tester.pump();
+
+    // Le TextField a le focus (autofocus) : on simule la touche
+    // Entrée du clavier physique.
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+
+    // L'éditeur doit rester ouvert : Entrée n'a pas validé, elle a
+    // seulement inséré un retour à la ligne.
+    expect(find.byType(TextField), findsOneWidget);
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('Ctrl+Enter validates and closes the multiline editor', (
+    WidgetTester tester,
+  ) async {
+    await openTextEditorOnNewRectangle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Routeur\nprincipal');
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump();
+
+    // Ctrl+Entrée a validé : l'éditeur doit avoir disparu.
+    expect(find.byType(TextField), findsNothing);
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets('Tapping outside the multiline editor validates and closes it', (
+    WidgetTester tester,
+  ) async {
+    await openTextEditorOnNewRectangle(tester);
+
+    await tester.enterText(find.byType(TextField), 'Texte');
+    await tester.pump();
+
+    // Un point clairement à l'extérieur du rectangle et de son champ.
+    await tester.tapAt(const Offset(700, 500));
+    await tester.pump();
+
+    expect(find.byType(TextField), findsNothing);
+
+    expect(tester.takeException(), isNull);
+
+    await tester.pump(const Duration(milliseconds: 100));
+  });
+
+  testWidgets(
+    'Tapping inside the multiline editor keeps it open (does not count as outside)',
+    (WidgetTester tester) async {
+      await openTextEditorOnNewRectangle(tester);
+
+      await tester.enterText(find.byType(TextField), 'Texte');
+      await tester.pump();
+
+      // Reclique à l'intérieur même du champ, près de son coin
+      // haut-gauche (le champ est aligné sur le coin haut-gauche de
+      // la forme et grandit vers le bas, donc ce point reste à
+      // l'intérieur quelle que soit la hauteur exacte rendue) : ça
+      // doit être traité comme un clic pour repositionner le
+      // curseur, PAS comme un clic extérieur qui terminerait
+      // l'édition.
+      const Offset insideEditor = Offset(400, 210);
+
+      await tester.tapAt(insideEditor);
+      await tester.pump();
+
+      expect(find.byType(TextField), findsOneWidget);
+
+      expect(tester.takeException(), isNull);
+
+      await tester.pump(const Duration(milliseconds: 100));
+    },
+  );
+
+  testWidgets('Multiline text survives resizing the shape', (
+    WidgetTester tester,
+  ) async {
+    await openTextEditorOnNewRectangle(tester);
+
+    await tester.enterText(
+      find.byType(TextField),
+      'Une ligne assez longue pour se répartir\nsur plusieurs lignes',
+    );
+    await tester.pump();
+
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.control);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.control);
+    await tester.pump(const Duration(milliseconds: 100));
+
+    // Glisse la poignée de redimensionnement (coin bas-droit du
+    // rectangle, voir test resize) pour vérifier que le rendu du
+    // texte multiligne ne casse rien pendant/après un resize.
+    const Offset handlePosition = Offset(500, 300);
+
+    final gesture = await tester.startGesture(handlePosition);
+    await gesture.moveBy(const Offset(80, 40));
+    await tester.pump();
+    await gesture.up();
+
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(tester.takeException(), isNull);
+  });
 }

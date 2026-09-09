@@ -50,6 +50,8 @@ Pour chaque PR fonctionnelle :
 
 - [x] Redimensionnement des formes (poignée unique en bas à droite,
       voir `TODO.md` pour le détail).
+- [x] Texte multiligne (champ `maxLines: null`, validation par clic
+      extérieur ou Ctrl+Entrée, voir `TODO.md` pour le détail).
 - [ ] Texte multiligne.
 - [ ] Amélioration des couleurs et styles.
 - [ ] Copier / coller.

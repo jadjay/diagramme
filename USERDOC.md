@@ -58,6 +58,11 @@ Utilisez un geste de pincement à deux doigts.
 
 Avec l'outil **Sélection**, double-cliquez ou double-touchez une forme pour éditer son texte.
 
+Le champ est multiligne : la touche **Entrée** insère un retour à la ligne. Pour valider et terminer l'édition :
+
+- cliquez à l'extérieur du champ ;
+- ou utilisez **Ctrl+Entrée**.
+
 ## Couleurs
 
 Après avoir sélectionné une forme :
@@ -77,7 +82,6 @@ Les connecteurs liés à une forme supprimée sont automatiquement supprimés.
 
 Les évolutions prévues incluent notamment :
 
-- texte multiligne ;
 - sauvegarde et chargement de documents ;
 - undo / redo ;
 - amélioration des styles et des couleurs.

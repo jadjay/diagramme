@@ -373,8 +373,13 @@ class DiagramPainter extends CustomPainter {
           rect.center.dy - textPainter.height / 2,
         );
 
-        // Dessin effectif sur le canvas.
+        // Un texte multiligne trop long peut être plus haut que la
+        // forme elle-même : on découpe le dessin à la boîte englobante
+        // pour qu'il ne dépasse jamais visuellement de la forme.
+        canvas.save();
+        canvas.clipRect(rect);
         textPainter.paint(canvas, textPosition);
+        canvas.restore();
       }
 
       // --------------------------------------------------------------

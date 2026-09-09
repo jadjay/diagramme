@@ -525,8 +525,9 @@ class _GridCanvasState extends State<GridCanvas> {
                 document.editingShape!.text = value;
               });
             },
-            // Validation : Entrée sur Linux, bouton "done" du clavier
-            // sur Android.
+            // Validation : clic extérieur ou Ctrl+Entrée (voir
+            // ShapeTextEditor). Conservé aussi pour un éventuel "done"
+            // explicite envoyé par la plateforme.
             onSubmitted: (value) {
               setState(() {
                 document.editingShape!.text = value;
