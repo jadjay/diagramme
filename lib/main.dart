@@ -15,6 +15,9 @@ class DiagrammeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       home: Scaffold(
         body: const GridCanvas(),
+        // bottom-left : l'indicateur de zoom occupe déjà le bas-droite
+        // du canevas (voir ZoomIndicator dans diagram_canvas.dart).
+        floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
         floatingActionButton: Builder(
           builder: (context) {
             return FloatingActionButton.small(
