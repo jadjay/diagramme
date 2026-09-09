@@ -14,8 +14,12 @@ Pour chaque PR fonctionnelle :
      `build-dev` sur la PR (voir `.github/workflows/build-dev.yml`) ;
 4. juste avant le merge, retirer `[WIP]` et cocher la tâche avec `[x]` ;
 5. merger la PR dans `main` (avec un commit de merge) ;
-6. le tag de version (incrément de patch) est posé automatiquement sur
-   **le commit de merge** par `.github/workflows/auto-tag.yml` ;
+6. si la PR contient au moins un commit `feat:` ou `fix:`, le tag de
+   version (incrément de patch) est posé automatiquement sur **le
+   commit de merge** par `.github/workflows/auto-tag.yml` ; une PR dont
+   tous les commits sont `refactor:`/`docs:`/`chore:`/`ci:`/`test:`/...
+   (aucun changement utilisateur) est mergée normalement mais ne
+   produit ni tag ni release ;
 7. la GitHub Release est générée automatiquement à partir de ce tag.
 
 ## Phase 1 — Nettoyage et documentation
