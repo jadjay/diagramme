@@ -30,7 +30,8 @@ La vision à moyen terme est détaillée dans `ROADMAP.md`.
 
 - [x] Extraire l'état du document (formes, connecteurs, sélection) hors
       de `GridCanvas` vers `DiagramDocument`.
-- [ ] Extraire la logique de sélection et de hit-testing.
+- [x] Extraire la logique de sélection et de hit-testing vers `ShapeHitTester`,
+      avec tests unitaires (`test/shape_hit_tester_test.dart`).
 - [ ] Extraire la logique pan / zoom / transformation du canevas.
 
 ## Resize des formes

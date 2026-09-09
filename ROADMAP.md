@@ -31,7 +31,9 @@ Pour chaque PR fonctionnelle :
       dans `lib/models/diagram_document.dart` : formes, connecteurs,
       sélection, et les mutations qui leur sont propres — création de
       forme, workflow connecteur, suppression).
-- [ ] Extraire la logique de sélection et de hit-testing.
+- [x] Extraire la logique de sélection et de hit-testing (`ShapeHitTester`
+      dans `lib/models/shape_hit_tester.dart`, testé indépendamment de
+      tout widget).
 - [ ] Extraire la logique pan / zoom / transformation du canevas.
 - [ ] Réduire progressivement la taille de `diagram_canvas.dart`.
 

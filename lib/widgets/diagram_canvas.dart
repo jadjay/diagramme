@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:diagramme/models/diagram_shape.dart';
 import 'package:diagramme/models/canvas_transform.dart';
 import 'package:diagramme/models/diagram_document.dart';
+import 'package:diagramme/models/shape_hit_tester.dart';
 
 import 'package:diagramme/painters/diagram_painter.dart';
 
@@ -141,116 +142,15 @@ class _GridCanvasState extends State<GridCanvas> {
   /// [screenPosition] est une position provenant de la souris,
   /// donc exprimée dans les coordonnées DE L'ÉCRAN.
   ///
-  /// Nos formes, elles, sont stockées dans les coordonnées DU MONDE.
-  ///
-  /// Première étape : convertir écran -> monde.
-  ///
-  /// Formule inverse de celle utilisée pour dessiner :
-  ///
-  ///   écran = monde * scale + offset
-  ///
-  /// donc :
-  ///
-  ///   monde = (écran - offset) / scale
+  /// Nos formes, elles, sont stockées dans les coordonnées DU MONDE :
+  /// on convertit donc d'abord via [CanvasTransform], puis on délègue
+  /// la géométrie du hit-testing à [ShapeHitTester].
   DiagramShape? _shapeAtScreenPosition(Offset screenPosition) {
     final transform = CanvasTransform(offset: offset, scale: scale);
 
     final Offset worldPosition = transform.screenToWorld(screenPosition);
 
-    // On parcourt les formes à l'envers.
-    //
-    // Pourquoi ?
-    //
-    // Si un jour deux formes se superposent, la dernière dessinée
-    // est visuellement au-dessus des autres.
-    //
-    // Il est donc logique que le clic sélectionne celle du dessus.
-    for (final shape in document.shapes.reversed) {
-      // ------------------------------------------------------------
-      // Hit-testing
-      // ------------------------------------------------------------
-      //
-      // "Hit-testing" = déterminer si un point se trouve réellement
-      // à l'intérieur d'une forme.
-      //
-      // worldPosition est déjà exprimé dans les coordonnées du monde.
-      //
-      // Donc tout le calcul qui suit est indépendant :
-      // - du zoom ;
-      // - du pan ;
-      // - de la taille de la fenêtre.
-      switch (shape.type) {
-        case ShapeType.rectangle:
-          // Pour un rectangle, Flutter sait déjà répondre
-          // directement à la question grâce à Rect.contains().
-          final Rect bounds = Rect.fromLTWH(
-            shape.position.dx,
-            shape.position.dy,
-            shape.width,
-            shape.height,
-          );
-
-          if (bounds.contains(worldPosition)) {
-            return shape;
-          }
-
-        case ShapeType.circle:
-          // Notre cercle est défini par une boîte :
-          //
-          // position ----+
-          //     ↓        |
-          //     ┌─────────────┐
-          //     │    *****    │
-          //     │  **     **  │
-          //     │ *    •    * │
-          //     │  **     **  │
-          //     │    *****    │
-          //     └─────────────┘
-          //
-          //                  • = centre
-          //
-          // Comme width == height pour nos cercles,
-          // le rayon vaut simplement width / 2.
-
-          final double radius = shape.width / 2;
-
-          // Calcul des coordonnées du centre du cercle.
-          final Offset center = Offset(
-            shape.position.dx + radius,
-            shape.position.dy + radius,
-          );
-
-          // Distance entre le point cliqué et le centre.
-          //
-          // Offset possède directement la propriété "distance".
-          //
-          // On calcule d'abord le vecteur :
-          //
-          //     clic - centre
-          //
-          // puis sa longueur.
-          final double distanceFromCenter = (worldPosition - center).distance;
-
-          // Géométrie toute simple :
-          //
-          // distance <= rayon
-          //
-          //             clic
-          //               •
-          //              /
-          //             / distance
-          //            /
-          //           • centre
-          //
-          // Si la distance est inférieure au rayon,
-          // le clic est dans le cercle.
-          if (distanceFromCenter <= radius) {
-            return shape;
-          }
-      }
-    }
-
-    return null;
+    return ShapeHitTester(document.shapes).shapeAt(worldPosition);
   }
 
   /// Outil de création actuellement actif.
