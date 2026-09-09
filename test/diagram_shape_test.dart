@@ -49,7 +49,7 @@ void main() {
       expect(rectangle.height, DiagramShape.minSize);
     });
 
-    test('keeps a circle's width equal to its height', () {
+    test('keeps a circle width equal to its height', () {
       final circle = DiagramShape(
         id: 'circle-1',
         type: ShapeType.circle,
