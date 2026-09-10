@@ -86,12 +86,36 @@ Améliorations possibles :
 
 ## Sauvegarde et chargement
 
-- [ ] Définir un format de document stable.
-- [ ] Sauvegarder les formes, leurs positions, dimensions, textes et couleurs.
-- [ ] Sauvegarder les connecteurs.
-- [ ] Charger un diagramme existant.
-- [ ] Prévoir la compatibilité du format entre versions.
-- [ ] Ajouter des tests de sérialisation et de restauration.
+Format retenu : `.dgm.md`, un document Markdown normal composé de deux
+parties (voir `lib/persistence/diagram_file_format.dart` pour le détail) :
+
+1. un en-tête YAML (frontmatter, délimité par `---`), seule source de
+   vérité relue par l'application : formes, connecteurs, positions,
+   tailles, couleurs, textes ;
+2. un bloc ```mermaid``` régénéré à chaque sauvegarde (non relu au
+   chargement), qui permet au fichier de s'afficher comme un vrai
+   diagramme dans un lecteur Markdown (GitHub, GitLab, Obsidian, VS
+   Code...).
+
+Le texte des formes est stocké en clair (bloc littéral YAML `|`, sans
+échappement) : ouvert comme simple fichier texte, il reste directement
+réutilisable dans un document Markdown ou LaTeX.
+
+- [x] Définir un format de document stable (`.dgm.md`) et versionné
+      (`diagramFileFormatVersion`, actuellement `1`).
+- [x] Sauvegarder les formes, leurs positions, dimensions, textes et couleurs
+      (`encodeDiagramDocument`).
+- [x] Sauvegarder les connecteurs (`encodeDiagramDocument`).
+- [ ] Charger un diagramme existant (sélecteur de fichier Android/Linux,
+      boutons Sauvegarder/Ouvrir dans la barre d'outils — `decodeDiagramDocument`
+      et `DiagramDocument.replaceContent` sont prêts côté modèle, il manque
+      l'intégration UI/fichier).
+- [x] Prévoir la compatibilité du format entre versions (un fichier dont la
+      version ne correspond pas à `diagramFileFormatVersion` est refusé avec
+      un message explicite ; la logique de migration proprement dite reste à
+      écrire le jour où le format évoluera).
+- [x] Ajouter des tests de sérialisation et de restauration
+      (`test/diagram_file_format_test.dart`, `test/diagram_document_test.dart`).
 
 ## Android release
 

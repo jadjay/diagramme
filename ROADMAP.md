@@ -59,10 +59,12 @@ Pour chaque PR fonctionnelle :
 
 ## Phase 4 — Persistance
 
-- [ ] Définir un format de document stable et versionné.
-- [ ] Sérialiser formes, connecteurs, styles et textes.
-- [ ] Charger un document existant.
-- [ ] Ajouter les tests de sérialisation et restauration.
+- [x] Définir un format de document stable et versionné (`.dgm.md` :
+      Markdown avec en-tête YAML, voir `TODO.md` pour le détail).
+- [x] Sérialiser formes, connecteurs, styles et textes.
+- [ ] Charger un document existant (sélecteur de fichier Android/Linux,
+      boutons Sauvegarder/Ouvrir).
+- [x] Ajouter les tests de sérialisation et restauration.
 
 ## Phase 5 — Distribution
 
