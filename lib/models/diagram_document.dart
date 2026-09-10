@@ -168,4 +168,65 @@ class DiagramDocument {
       resizingShape = null;
     }
   }
+
+  /// Remplace tout le contenu du document par [loadedShapes] et
+  /// [loadedConnectors] — typiquement après le chargement d'un fichier
+  /// (voir `lib/persistence/diagram_file_format.dart`) — et réinitialise
+  /// toute sélection/édition/drag en cours, qui ne peut plus référencer
+  /// une forme valide.
+  ///
+  /// Recalcule aussi [_nextShapeId] à partir des identifiants déjà
+  /// présents dans [loadedShapes], pour que les prochaines formes créées
+  /// par [addRectangle]/[addCircle] ne réutilisent jamais un identifiant
+  /// déjà chargé depuis le fichier.
+  void replaceContent(
+    List<DiagramShape> loadedShapes,
+    List<DiagramConnector> loadedConnectors,
+  ) {
+    shapes
+      ..clear()
+      ..addAll(loadedShapes);
+
+    connectors
+      ..clear()
+      ..addAll(loadedConnectors);
+
+    selectedShape = null;
+    editingShape = null;
+    connectorStartShape = null;
+    draggedShape = null;
+    resizingShape = null;
+
+    _nextShapeId = _highestLoadedShapeId(loadedShapes) + 1;
+  }
+
+  /// Identifiants générés sous la forme `shape-N` (voir [addRectangle] et
+  /// [addCircle]) : on en extrait le plus grand N déjà utilisé, pour
+  /// reprendre la numérotation juste après.
+  ///
+  /// Un identifiant qui ne suit pas ce format (chargé depuis un fichier
+  /// édité à la main, par exemple) est simplement ignoré ici : il reste
+  /// parfaitement valide comme identifiant, seule la numérotation
+  /// automatique des PROCHAINES formes s'appuie sur ce format.
+  static int _highestLoadedShapeId(List<DiagramShape> shapes) {
+    final RegExp pattern = RegExp(r'^shape-(\d+)$');
+
+    int highest = 0;
+
+    for (final DiagramShape shape in shapes) {
+      final RegExpMatch? match = pattern.firstMatch(shape.id);
+
+      if (match == null) {
+        continue;
+      }
+
+      final int value = int.parse(match.group(1)!);
+
+      if (value > highest) {
+        highest = value;
+      }
+    }
+
+    return highest;
+  }
 }
