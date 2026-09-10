@@ -15,6 +15,7 @@ import 'package:diagramme/widgets/shape_text_editor.dart';
 import 'package:diagramme/widgets/shape_resize_handle.dart';
 
 import 'package:diagramme/persistence/diagram_file_format.dart';
+import 'package:diagramme/rendering/diagram_png_exporter.dart';
 
 /// Notre zone de dessin.
 ///
@@ -31,11 +32,11 @@ class GridCanvas extends StatefulWidget {
 
 /// État associé à GridCanvas.
 ///
-/// Exposé publiquement (plutôt que préfixé "_") pour que le bouton
-/// Sauvegarder/Ouvrir de `main.dart` puisse y accéder via une
+/// Exposé publiquement (plutôt que préfixé "_") pour que les boutons
+/// Sauvegarder/Ouvrir/Exporter de `main.dart` puissent y accéder via une
 /// `GlobalKey<GridCanvasState>` : le document du diagramme reste privé à
-/// ce widget, [exportDocument]/[importDocument] sont la seule porte
-/// d'entrée offerte à l'extérieur.
+/// ce widget, [exportDocument]/[importDocument]/[exportPng] sont la
+/// seule porte d'entrée offerte à l'extérieur.
 class GridCanvasState extends State<GridCanvas> {
   @override
   void dispose() {
@@ -60,6 +61,13 @@ class GridCanvasState extends State<GridCanvas> {
     setState(() {
       document.replaceContent(decoded.shapes, decoded.connectors);
     });
+  }
+
+  /// Rend le diagramme actuel en PNG à fond transparent (voir
+  /// `lib/rendering/diagram_png_exporter.dart`). `null` si le diagramme
+  /// est vide (rien à exporter).
+  Future<Uint8List?> exportPng() {
+    return renderDiagramToPng(document.shapes, document.connectors);
   }
 
   /// Le contenu du diagramme (formes, connecteurs, sélection).
