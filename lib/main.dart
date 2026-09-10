@@ -70,14 +70,10 @@ class DiagrammeApp extends StatelessWidget {
                       onPressed: () => _openDiagram(context, _canvasKey),
                       child: const Text('Ouvrir'),
                     ),
-                    // Prévu pour plus tard (export vers un autre format
-                    // que .dgm.md, par exemple une image) : le bouton
-                    // reste visible mais désactivé (onPressed: null) en
-                    // attendant.
-                    const MenuItemButton(
-                      leadingIcon: Icon(Icons.ios_share_outlined),
-                      onPressed: null,
-                      child: Text('Exporter (bientôt)'),
+                    MenuItemButton(
+                      leadingIcon: const Icon(Icons.image_outlined),
+                      onPressed: () => _exportPng(context, _canvasKey),
+                      child: const Text('Exporter en PNG'),
                     ),
                   ],
                 ),
@@ -195,6 +191,59 @@ Future<void> _openDiagram(
         SnackBar(content: Text('Fichier invalide : ${error.message}')),
       );
     }
+  }
+}
+
+/// Exporte le diagramme actuel en PNG (fond transparent, voir
+/// `lib/rendering/diagram_png_exporter.dart`) vers un fichier choisi par
+/// l'utilisateur.
+Future<void> _exportPng(
+  BuildContext context,
+  GlobalKey<GridCanvasState> canvasKey,
+) async {
+  final GridCanvasState? canvas = canvasKey.currentState;
+
+  if (canvas == null) {
+    return;
+  }
+
+  final Uint8List? pngBytes = await canvas.exportPng();
+
+  if (pngBytes == null) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Rien à exporter : le diagramme est vide.'),
+        ),
+      );
+    }
+
+    return;
+  }
+
+  final String? path = await FilePicker.platform.saveFile(
+    dialogTitle: 'Exporter en PNG',
+    fileName: 'diagramme.png',
+    type: FileType.custom,
+    allowedExtensions: ['png'],
+    bytes: pngBytes,
+  );
+
+  if (path == null) {
+    // Sélection annulée par l'utilisateur.
+    return;
+  }
+
+  // Même remarque que pour _saveDiagram : sur Android, file_picker
+  // écrit déjà le fichier à partir de `bytes`.
+  if (!Platform.isAndroid) {
+    await File(path).writeAsBytes(pngBytes);
+  }
+
+  if (context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Diagramme exporté en PNG.')));
   }
 }
 

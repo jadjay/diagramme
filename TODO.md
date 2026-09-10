@@ -119,10 +119,15 @@ réutilisable dans un document Markdown ou LaTeX.
 - [x] Ajouter des tests de sérialisation et de restauration
       (`test/diagram_file_format_test.dart`, `test/diagram_document_test.dart`).
 
+- [x] Exporter en PNG (fond transparent, recadré au plus près du contenu,
+      rendu vectoriel direct à `pixelRatio: 2.0` pour rester net sans être
+      lourd) : menu Fichier -> Exporter en PNG
+      (`lib/rendering/diagram_png_exporter.dart`,
+      `GridCanvasState.exportPng`).
+
 Prévu pour plus tard :
 
-- [ ] Exporter vers un autre format (image, PDF...) — entrée de menu déjà
-      réservée ("Exporter (bientôt)"), volontairement désactivée pour l'instant.
+- [ ] Exporter vers d'autres formats (PDF...).
 
 ## Android release
 

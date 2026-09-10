@@ -929,8 +929,8 @@ void main() {
   });
 
   testWidgets(
-    'The file button opens a menu with Sauvegarder, Ouvrir and a disabled '
-    'Exporter placeholder',
+    'The file button opens a menu with Sauvegarder, Ouvrir and Exporter '
+    'en PNG',
     (WidgetTester tester) async {
       await tester.pumpWidget(const DiagrammeApp());
 
@@ -943,21 +943,27 @@ void main() {
 
       expect(find.text('Sauvegarder'), findsOneWidget);
       expect(find.text('Ouvrir'), findsOneWidget);
-      expect(find.text('Exporter (bientôt)'), findsOneWidget);
+      expect(find.text('Exporter en PNG'), findsOneWidget);
 
-      // "Exporter" est un repère visuel pour une fonctionnalité future :
-      // il ne doit pas encore être actionnable.
-      final MenuItemButton exportButton = tester.widget<MenuItemButton>(
-        find.widgetWithText(MenuItemButton, 'Exporter (bientôt)'),
-      );
+      // Les trois entrées du menu sont actionnables.
+      for (final String label in [
+        'Sauvegarder',
+        'Ouvrir',
+        'Exporter en PNG',
+      ]) {
+        final MenuItemButton button = tester.widget<MenuItemButton>(
+          find.widgetWithText(MenuItemButton, label),
+        );
 
-      expect(exportButton.onPressed, isNull);
+        expect(button.onPressed, isNotNull);
+      }
 
-      // On ne tape pas Sauvegarder/Ouvrir ici : ils appellent
+      // On ne tape pas les entrées du menu ici : elles appellent
       // FilePicker.platform, qui n'a pas d'implémentation de plateforme
       // dans l'environnement de test (la logique d'encodage/décodage
       // elle-même est testée indépendamment de l'UI dans
-      // test/diagram_file_format_test.dart).
+      // test/diagram_file_format_test.dart et
+      // test/diagram_png_exporter_test.dart).
       expect(tester.takeException(), isNull);
     },
   );

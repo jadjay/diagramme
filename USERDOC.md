@@ -91,12 +91,21 @@ fichier texte, il reste lisible (le texte des formes n'est pas encodé), et
 ouvert dans un lecteur Markdown qui sait afficher des diagrammes Mermaid
 (GitHub, GitLab, Obsidian, VS Code...), il s'affiche comme un vrai diagramme.
 
+## Exporter en PNG
+
+Dans le menu **Fichier**, **Exporter en PNG** enregistre une image du
+diagramme actuel :
+
+- fond transparent ;
+- recadrée au plus près du contenu (pas de marge inutile) ;
+- nette à n'importe quelle taille (dessin vectoriel, pas d'agrandissement
+  d'image).
+
 ## Fonctionnalités prévues
 
 Les évolutions prévues incluent notamment :
 
-- export vers un autre format (bouton déjà présent dans le menu Fichier,
-  pour l'instant désactivé) ;
+- export vers d'autres formats (PDF...) ;
 - undo / redo ;
 - amélioration des styles et des couleurs.
 
