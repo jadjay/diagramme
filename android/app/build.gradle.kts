@@ -6,7 +6,13 @@ plugins {
 
 android {
     namespace = "local.jerome.diagramme"
-    compileSdk = flutter.compileSdkVersion
+    // Le défaut de Flutter (flutter.compileSdkVersion) ne suffit plus
+    // depuis l'ajout de file_picker : sa dépendance transitive
+    // flutter_plugin_android_lifecycle exige compileSdk >= 36
+    // (échec Gradle "checkReleaseAarMetadata" sinon). Ceci ne change que
+    // la version des API compilées contre, pas le comportement runtime
+    // (targetSdk) ni les appareils compatibles (minSdk).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
