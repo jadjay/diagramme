@@ -14,6 +14,8 @@ import 'package:diagramme/widgets/zoom_indicator.dart';
 import 'package:diagramme/widgets/shape_text_editor.dart';
 import 'package:diagramme/widgets/shape_resize_handle.dart';
 
+import 'package:diagramme/persistence/diagram_file_format.dart';
+
 /// Notre zone de dessin.
 ///
 /// StatefulWidget = widget qui possède un état mutable.
@@ -24,19 +26,40 @@ class GridCanvas extends StatefulWidget {
   const GridCanvas({super.key});
 
   @override
-  State<GridCanvas> createState() => _GridCanvasState();
+  State<GridCanvas> createState() => GridCanvasState();
 }
 
 /// État associé à GridCanvas.
 ///
-/// La convention Flutter met souvent un "_" devant les classes privées.
-/// "_GridCanvasState" n'est donc visible que dans ce fichier.
-class _GridCanvasState extends State<GridCanvas> {
+/// Exposé publiquement (plutôt que préfixé "_") pour que le bouton
+/// Sauvegarder/Ouvrir de `main.dart` puisse y accéder via une
+/// `GlobalKey<GridCanvasState>` : le document du diagramme reste privé à
+/// ce widget, [exportDocument]/[importDocument] sont la seule porte
+/// d'entrée offerte à l'extérieur.
+class GridCanvasState extends State<GridCanvas> {
   @override
   void dispose() {
     _textController.dispose();
     _canvasFocusNode.dispose();
     super.dispose();
+  }
+
+  /// Sérialise le document actuel au format `.dgm.md` (voir
+  /// `lib/persistence/diagram_file_format.dart`), pour la sauvegarde.
+  String exportDocument() => encodeDiagramDocument(document);
+
+  /// Remplace le document actuel par le contenu d'un fichier `.dgm.md`
+  /// (voir [encodeDiagramDocument]).
+  ///
+  /// Lève une [FormatException] si [content] n'est pas un fichier
+  /// `.dgm.md` valide — laissée à la charge de l'appelant, qui peut
+  /// alors en informer l'utilisateur.
+  void importDocument(String content) {
+    final decoded = decodeDiagramDocument(content);
+
+    setState(() {
+      document.replaceContent(decoded.shapes, decoded.connectors);
+    });
   }
 
   /// Le contenu du diagramme (formes, connecteurs, sélection).

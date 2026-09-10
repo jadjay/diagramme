@@ -106,16 +106,23 @@ réutilisable dans un document Markdown ou LaTeX.
 - [x] Sauvegarder les formes, leurs positions, dimensions, textes et couleurs
       (`encodeDiagramDocument`).
 - [x] Sauvegarder les connecteurs (`encodeDiagramDocument`).
-- [ ] Charger un diagramme existant (sélecteur de fichier Android/Linux,
-      boutons Sauvegarder/Ouvrir dans la barre d'outils — `decodeDiagramDocument`
-      et `DiagramDocument.replaceContent` sont prêts côté modèle, il manque
-      l'intégration UI/fichier).
+- [x] Charger un diagramme existant : bouton "Fichier" (icône dossier, à côté
+      du bouton d'aide) ouvrant un menu Sauvegarder/Ouvrir, basé sur
+      `file_picker` pour le sélecteur de fichier natif Android/Linux
+      (`lib/main.dart`, `GridCanvasState.exportDocument`/`importDocument`).
+      Un fichier invalide (mauvaise version, en-tête absent...) affiche un
+      message d'erreur plutôt que de planter.
 - [x] Prévoir la compatibilité du format entre versions (un fichier dont la
       version ne correspond pas à `diagramFileFormatVersion` est refusé avec
       un message explicite ; la logique de migration proprement dite reste à
       écrire le jour où le format évoluera).
 - [x] Ajouter des tests de sérialisation et de restauration
       (`test/diagram_file_format_test.dart`, `test/diagram_document_test.dart`).
+
+Prévu pour plus tard :
+
+- [ ] Exporter vers un autre format (image, PDF...) — entrée de menu déjà
+      réservée ("Exporter (bientôt)"), volontairement désactivée pour l'instant.
 
 ## Android release
 

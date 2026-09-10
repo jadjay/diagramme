@@ -927,4 +927,38 @@ void main() {
 
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets(
+    'The file button opens a menu with Sauvegarder, Ouvrir and a disabled '
+    'Exporter placeholder',
+    (WidgetTester tester) async {
+      await tester.pumpWidget(const DiagrammeApp());
+
+      final Finder fileButton = find.byTooltip('Fichier');
+
+      expect(fileButton, findsOneWidget);
+
+      await tester.tap(fileButton);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sauvegarder'), findsOneWidget);
+      expect(find.text('Ouvrir'), findsOneWidget);
+      expect(find.text('Exporter (bientôt)'), findsOneWidget);
+
+      // "Exporter" est un repère visuel pour une fonctionnalité future :
+      // il ne doit pas encore être actionnable.
+      final MenuItemButton exportButton = tester.widget<MenuItemButton>(
+        find.widgetWithText(MenuItemButton, 'Exporter (bientôt)'),
+      );
+
+      expect(exportButton.onPressed, isNull);
+
+      // On ne tape pas Sauvegarder/Ouvrir ici : ils appellent
+      // FilePicker.platform, qui n'a pas d'implémentation de plateforme
+      // dans l'environnement de test (la logique d'encodage/décodage
+      // elle-même est testée indépendamment de l'UI dans
+      // test/diagram_file_format_test.dart).
+      expect(tester.takeException(), isNull);
+    },
+  );
 }

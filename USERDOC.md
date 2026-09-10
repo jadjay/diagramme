@@ -78,11 +78,25 @@ Sur un ordinateur, les touches **Suppr** et **Retour arrière** peuvent égaleme
 
 Les connecteurs liés à une forme supprimée sont automatiquement supprimés.
 
+## Sauvegarder et ouvrir un diagramme
+
+Le bouton **Fichier** (icône dossier, à côté du bouton d'aide) ouvre un menu :
+
+- **Sauvegarder** enregistre le diagramme actuel dans un fichier `.dgm.md` ;
+- **Ouvrir** remplace le diagramme actuel par le contenu d'un fichier `.dgm.md`
+  choisi sur l'appareil.
+
+Un fichier `.dgm.md` est un document Markdown normal : ouvert comme simple
+fichier texte, il reste lisible (le texte des formes n'est pas encodé), et
+ouvert dans un lecteur Markdown qui sait afficher des diagrammes Mermaid
+(GitHub, GitLab, Obsidian, VS Code...), il s'affiche comme un vrai diagramme.
+
 ## Fonctionnalités prévues
 
 Les évolutions prévues incluent notamment :
 
-- sauvegarde et chargement de documents ;
+- export vers un autre format (bouton déjà présent dans le menu Fichier,
+  pour l'instant désactivé) ;
 - undo / redo ;
 - amélioration des styles et des couleurs.
 
